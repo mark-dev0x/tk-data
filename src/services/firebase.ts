@@ -90,7 +90,7 @@ export async function getSubmissions(): Promise<Submission[]> {
   try {
     // Test basic Firebase connectivity with a simple operation first
     console.log('Testing Firebase connection...')
-    const submissionsRef = collection(db, 'raffle-entries-test')
+    const submissionsRef = collection(db, 'raffle-entries-test-123')
 
     // Try without orderBy first to see if it's a permissions issue
     console.log('Getting documents...')
