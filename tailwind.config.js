@@ -43,6 +43,11 @@ export default {
           '"Noto Sans"',
           'sans-serif',
         ],
+        squad: ['"Fontfabric Squad"', 'sans-serif'],
+      },
+      fontWeight: {
+        bold: '700',
+        heavyyy: '800',
       },
       boxShadow: {
         sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',

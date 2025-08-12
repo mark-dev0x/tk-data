@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Fontfabric Squad';
+  src: url('/fonts/Fontfabric-Squad-Bold.woff2') format('woff2');
+  font-weight: 700; /* Bold */
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Fontfabric Squad';
+  src: url('/fonts/Fontfabric-Squad-Heavy.woff2') format('woff2');
+  font-weight: 800; /* Heavy */
+  font-style: normal;
+  font-display: swap;
+}
+
 /* color palette from <https://github.com/vuejs/theme> */
 :root {
   --vt-c-white: #ffffff;
