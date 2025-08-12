@@ -722,7 +722,7 @@ const toggleEntryStatus = async (submission: Submission, index: number) => {
 
   try {
     // Update the status in Firebase
-    const submissionRef = doc(db, 'raffle-entries-test', submission.id)
+    const submissionRef = doc(db, 'raffle-entries-test-123', submission.id)
     await updateDoc(submissionRef, {
       entryStatus: newStatus,
     })
