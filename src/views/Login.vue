@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-[dvh] flex w-full">
+  <div class="min-h-[100dvh] flex w-full">
     <div class="hidden lg:flex flex-1 bg-[#d14124] min-w-[400px]">
       <div class="h-screen w-full max-w-6xl items-center justify-center ml-auto p-4 flex">
         <img src="/imgs/tk-logo.webp" alt="Tapa King logo" class="w-[600px]" />
