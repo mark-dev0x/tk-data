@@ -2,17 +2,19 @@
   <div class="min-h-screen flex w-full">
     <div class="hidden lg:flex flex-1 bg-[#d14124] min-w-[400px]">
       <div class="h-screen w-full max-w-6xl items-center justify-center ml-auto p-4 flex">
-        <img src="/imgs/tk-logo.webp" alt="Tapa King logo" class="w-[600px]" />
+        <img src="/imgs/tk-logo.webp" alt="Tapa King logo" class="w-[400px]" />
       </div>
     </div>
     <div class="bg-c-beige min-h-full flex flex-col items-center p-8 lg:w-[600px] w-full lg:p-18">
       <img src="/imgs/tk-logo-red.png" alt="tpk-logo" class="mx-auto w-60" />
 
-      <div class="w-full px-0 sm:px-10">
-        <h1 class="text-[#d14124] mt-20 text-5xl font-bold">Welcome,</h1>
-        <h2 class="text-[#8a2a2b] mb-12 mt-2 font-bold text-2xl">Glad to see you!</h2>
+      <div class="w-full flex-1 flex flex-col items-center justify-center px-0 sm:px-10">
+        <h1 class="w-full text-[#d14124] text-left text-5xl font-bold">Welcome,</h1>
+        <h2 class="w-full text-[#8a2a2b] text-left mb-12 mt-2 font-bold text-2xl">
+          Glad to see you!
+        </h2>
 
-        <form class="space-y-8 mx-auto" @submit.prevent="handleLogin">
+        <form class="space-y-8 w-full max-w-md" @submit.prevent="handleLogin">
           <div
             v-if="error"
             class="bg-red-900 bg-opacity-50 border border-red-400 text-red-100 px-4 py-3 rounded-lg mb-4"
@@ -64,7 +66,7 @@
             <button
               type="submit"
               :disabled="isLoading"
-              class="w-full flex justify-center items-center px-6 py-4 text-sm font-semibold rounded-xl text-white focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-30 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 bg-[#8a2a2b]"
+              class="w-full flex justify-center items-center px-6 py-4 text-sm font-semibold rounded-xl text-white focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-30 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 bg-[#d14124] hover:bg-[#b12c1f] active:bg-[#a11f1a] shadow-lg"
             >
               <span v-if="isLoading" class="mr-3">
                 <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
