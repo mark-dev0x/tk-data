@@ -1012,7 +1012,7 @@ const branchRevenueData = computed(() => {
   return data
 })
 
-const dailyTrendsData = computed(() => {
+const entriesPerDayData = computed(() => {
   const dayData = filteredSubmissions.value.reduce((acc: Record<string, number>, submission) => {
     if (submission.submittedAt) {
       try {
@@ -1038,6 +1038,16 @@ const dailyTrendsData = computed(() => {
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-30) // Last 30 days
 
+  // Define a color palette for the bars
+  const barColors = [
+    '#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6',
+    '#06b6d4', '#f87171', '#a78bfa', '#34d399', '#fbbf24',
+    '#f472b6', '#2563eb', '#fb7185', '#22d3ee', '#facc15',
+    '#e879f9', '#38bdf8', '#4ade80', '#f472b6', '#f87171',
+    '#a3e635', '#f43f5e', '#fcd34d', '#818cf8', '#fca5a5',
+    '#fbbf24', '#7c3aed', '#f472b6', '#f87171', '#a3e635'
+  ]
+
   const data = {
     labels: sortedDays.map(([day]) => {
       const [year, month, dayNum] = day.split('-')
@@ -1048,22 +1058,13 @@ const dailyTrendsData = computed(() => {
       {
         label: 'Daily Entries',
         data: sortedDays.map(([, entries]) => entries),
-        backgroundColor: sortedDays.map(() => 'rgba(59, 130, 246, 0.1)'),
-        borderColor: sortedDays.map(() => '#3b82f6'),
+        backgroundColor: sortedDays.map((_, i) => barColors[i % barColors.length]),
+        borderColor: sortedDays.map((_, i) => barColors[i % barColors.length]),
         borderWidth: 2,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: sortedDays.map(() => '#3b82f6'),
-        pointBorderColor: sortedDays.map(() => '#ffffff'),
-        pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6,
       },
     ],
   }
 
-  console.log('Daily Trends Data:', data)
-  console.log('Day Data:', dayData)
   return data
 })
 
@@ -2266,7 +2267,7 @@ onUnmounted(() => {
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  d="M12 8v6m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
               <h3 class="mb-2 text-xl font-semibold text-gray-900">Unable to Connect</h3>
@@ -2351,7 +2352,7 @@ onUnmounted(() => {
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                      d="M19 11H5m14 0a2 2 0 002 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                     />
                   </svg>
                 </div>
@@ -2431,7 +2432,7 @@ onUnmounted(() => {
             class="p-3 mb-6 bg-white border border-gray-200 shadow-sm rounded-xl sm:p-6"
           >
             <div class="mb-4">
-              <h3 class="mb-1 text-lg font-semibold text-gray-900">Filter & Search</h3>
+              <h3 class="mb-1 text-lg font-semibold text-gray-900" >Filter & Search</h3>
               <p class="text-xs text-gray-500 sm:text-sm">
                 Find specific entries or narrow down your results
               </p>
@@ -2804,7 +2805,7 @@ onUnmounted(() => {
                         stroke-linecap="round"
                         stroke-linejoin="round"
                         stroke-width="2"
-                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h10"
                       />
                     </svg>
                     {{
@@ -3254,7 +3255,6 @@ onUnmounted(() => {
             <div class="w-12 h-12 border-b-2 border-purple-600 rounded-full animate-spin"></div>
             <span class="font-medium text-gray-600">Loading existing winners from database...</span>
           </div>
-
           <div v-else class="max-w-6xl mx-auto">
             <div class="mb-8 text-center">
               <h2 class="mb-4 text-3xl font-bold text-gray-900">
@@ -4261,17 +4261,17 @@ onUnmounted(() => {
                 <h3 class="mb-1 text-lg font-semibold text-gray-900">Entries per Day</h3>
                 <p class="mb-4 text-sm text-gray-600">Daily entry distribution in percentage</p>
                 <div class="relative h-72">
-                  <PieChart
+                  <BarChart
                     v-if="
                       filteredSubmissions.length > 0 &&
-                      dailyTrendsData &&
-                      dailyTrendsData.labels &&
-                      dailyTrendsData.labels.length > 0
+                      entriesPerDayData &&
+                      entriesPerDayData.labels &&
+                      entriesPerDayData.labels.length > 0
                     "
-                    :data="dailyTrendsData"
+                    :data="entriesPerDayData"
                     :height="260"
                     :width="500"
-                    :key="`pie-chart-${filteredSubmissions.length}-${searchTerm}-${selectedBranch}-${startDate}-${endDate}`"
+                    :key="`bar-chart-${filteredSubmissions.length}-${searchTerm}-${selectedBranch}-${startDate}-${endDate}`"
                   />
                   <div v-else class="flex items-center justify-center h-full text-gray-500">
                     <div class="text-center">
@@ -4318,7 +4318,7 @@ onUnmounted(() => {
                       }}
                     </span>
                   </div>
-                  <div class="flex justify-between items-center">
+                  <!-- <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600">Validation Rate:</span>
                     <span class="font-semibold text-gray-900">
                       {{
@@ -4327,7 +4327,7 @@ onUnmounted(() => {
                           : 0
                       }}%
                     </span>
-                  </div>
+                  </div> -->
                   <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600">Total Branches:</span>
                     <span class="font-semibold text-gray-900">
