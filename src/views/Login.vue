@@ -21,7 +21,7 @@
         <form class="space-y-8 w-full" @submit.prevent="handleLogin">
           <div
             v-if="error"
-            class="bg-red-900 bg-opacity-50 border border-red-400 text-red-100 px-4 py-3 rounded-lg mb-4"
+            class="bg-[#d14124] bg-opacity-80 border border-red-400 text-white px-4 py-3 rounded-lg mb-4"
           >
             {{ error }}
           </div>

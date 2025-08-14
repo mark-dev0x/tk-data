@@ -219,24 +219,14 @@ const toggleInvalidEntries = () => {
 }
 
 // Get valid entries list
-const validEntriesList = computed(() => {
-  return submissions.value.filter(
-    (submission) =>
-      submission.entryStatus === 'Valid' ||
-      submission.entryStatus === 'Verified' ||
-      submission.entryStatus === 'Approved',
-  )
-})
+const validEntriesList = computed(() =>
+  submissions.value.filter((submission) => submission.entryStatus === 'Valid'),
+)
 
 // Get invalid entries list
-const invalidEntriesList = computed(() => {
-  return submissions.value.filter(
-    (submission) =>
-      submission.entryStatus === 'Invalid' ||
-      submission.entryStatus === 'Pending' ||
-      !submission.entryStatus,
-  )
-})
+const invalidEntriesList = computed(() =>
+  submissions.value.filter((submission) => submission.entryStatus === 'Invalid'),
+)
 
 // Sorting state
 const sortColumn = ref<string | null>(null)
@@ -348,19 +338,7 @@ const filteredSubmissions = computed(() => {
 
     // Entry Status filter
     if (selectedEntryStatus.value) {
-      const isValid =
-        submission.entryStatus === 'Valid' ||
-        submission.entryStatus === 'Verified' ||
-        submission.entryStatus === 'Approved'
-      const isInvalid =
-        submission.entryStatus === 'Invalid' ||
-        submission.entryStatus === 'Pending' ||
-        !submission.entryStatus
-
-      if (selectedEntryStatus.value === 'Valid' && !isValid) {
-        return false
-      }
-      if (selectedEntryStatus.value === 'Invalid' && !isInvalid) {
+      if (submission.entryStatus !== selectedEntryStatus.value) {
         return false
       }
     }
@@ -405,17 +383,14 @@ const stats = computed(() => {
   // Total Entries (sum of all raffle entries)
   const totalEntries = submissions.value.reduce((sum, s) => sum + (s.raffleEntries || 1), 0)
 
-  // Valid Entries (sum of raffle entries from valid submissions)
+  // Valid Entries
   const validEntries = submissions.value
-    .filter(
-      (s) =>
-        s.entryStatus === 'Valid' || s.entryStatus === 'Verified' || s.entryStatus === 'Approved',
-    )
+    .filter((s) => s.entryStatus === 'Valid')
     .reduce((sum, s) => sum + (s.raffleEntries || 1), 0)
 
-  // Invalid Entries (sum of raffle entries from invalid submissions)
+  // Invalid Entries
   const invalidEntries = submissions.value
-    .filter((s) => s.entryStatus === 'Invalid' || s.entryStatus === 'Pending' || !s.entryStatus)
+    .filter((s) => s.entryStatus === 'Invalid')
     .reduce((sum, s) => sum + (s.raffleEntries || 1), 0)
 
   return {
@@ -709,13 +684,7 @@ const toggleEntryStatus = async (submission: Submission, index: number) => {
   }
 
   const currentStatus = submission.entryStatus
-  let newStatus = ''
-
-  if (currentStatus === 'Valid' || currentStatus === 'Verified' || currentStatus === 'Approved') {
-    newStatus = 'Invalid'
-  } else {
-    newStatus = 'Valid'
-  }
+  const newStatus = currentStatus === 'Valid' ? 'Invalid' : 'Valid'
 
   // Add to updating set
   statusUpdating.value.add(submission.id)
@@ -1040,12 +1009,36 @@ const entriesPerDayData = computed(() => {
 
   // Define a color palette for the bars
   const barColors = [
-    '#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6',
-    '#06b6d4', '#f87171', '#a78bfa', '#34d399', '#fbbf24',
-    '#f472b6', '#2563eb', '#fb7185', '#22d3ee', '#facc15',
-    '#e879f9', '#38bdf8', '#4ade80', '#f472b6', '#f87171',
-    '#a3e635', '#f43f5e', '#fcd34d', '#818cf8', '#fca5a5',
-    '#fbbf24', '#7c3aed', '#f472b6', '#f87171', '#a3e635'
+    '#3b82f6',
+    '#f59e0b',
+    '#10b981',
+    '#ef4444',
+    '#8b5cf6',
+    '#06b6d4',
+    '#f87171',
+    '#a78bfa',
+    '#34d399',
+    '#fbbf24',
+    '#f472b6',
+    '#2563eb',
+    '#fb7185',
+    '#22d3ee',
+    '#facc15',
+    '#e879f9',
+    '#38bdf8',
+    '#4ade80',
+    '#f472b6',
+    '#f87171',
+    '#a3e635',
+    '#f43f5e',
+    '#fcd34d',
+    '#818cf8',
+    '#fca5a5',
+    '#fbbf24',
+    '#7c3aed',
+    '#f472b6',
+    '#f87171',
+    '#a3e635',
   ]
 
   const data = {
@@ -1136,14 +1129,10 @@ const entryStatusData = computed(() => {
         label: 'Entry Status Distribution',
         data: filteredStatuses.map(([, count]) => count),
         backgroundColor: [
-          'rgba(34, 197, 94, 0.8)', // Green for Valid/Verified/Approved
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(34, 197, 94, 0.8)',
+          'rgba(34, 197, 94, 0.8)', // Green for Valid
           'rgba(239, 68, 68, 0.8)', // Red for Invalid
-          'rgba(245, 158, 11, 0.8)', // Yellow for Pending
-          'rgba(156, 163, 175, 0.8)', // Gray for Unknown
         ],
-        borderColor: ['#16a34a', '#16a34a', '#16a34a', '#dc2626', '#d97706', '#9ca3af'],
+        borderColor: ['#16a34a', '#dc2626'],
         borderWidth: 1,
       },
     ],
@@ -1400,20 +1389,17 @@ const totalConsolationWinners = computed(() => {
 const eligibleEntries = computed(() => {
   const eligible = submissions.value.filter(
     (submission) =>
-      (submission.entryStatus === 'Valid' ||
-        submission.entryStatus === 'Verified' ||
-        submission.entryStatus === 'Approved') &&
+      submission.entryStatus === 'Valid' &&
       (submission.raffleEntries || 1) > getConfirmedWinsCount(submission.id),
   )
+
   console.log('Total submissions:', submissions.value.length)
   console.log(
     'Valid submissions:',
-    submissions.value.filter(
-      (s) =>
-        s.entryStatus === 'Valid' || s.entryStatus === 'Verified' || s.entryStatus === 'Approved',
-    ).length,
+    submissions.value.filter((s) => s.entryStatus === 'Valid').length,
   )
   console.log('Eligible entries (with remaining entries after confirmed wins):', eligible.length)
+
   return eligible
 })
 
@@ -1469,10 +1455,8 @@ const drawRandomWinners = (count: number) => {
 
     // Get detailed breakdown for better debugging
     const totalEntries = submissions.value.length
-    const validEntries = submissions.value.filter(
-      (s) =>
-        s.entryStatus === 'Valid' || s.entryStatus === 'Verified' || s.entryStatus === 'Approved',
-    ).length
+    const validEntries = submissions.value.filter((s) => s.entryStatus === 'Valid').length
+
     console.log('Entry breakdown:', {
       total: totalEntries,
       valid: validEntries,
@@ -1481,13 +1465,10 @@ const drawRandomWinners = (count: number) => {
 
     // Show detailed error message with actionable steps
     const shortfall = count - eligible.length
-    let actionMessage = ''
-
-    if (validEntries === 0) {
-      actionMessage = 'Please approve some entries in the Raffle Entries tab first.'
-    } else {
-      actionMessage = `You need ${shortfall} more eligible entries. Users need more raffle entries than their confirmed wins to be eligible.`
-    }
+    const actionMessage =
+      validEntries === 0
+        ? 'Please approve some entries in the Raffle Entries tab first.'
+        : `You need ${shortfall} more eligible entries. Users need more raffle entries than their confirmed wins to be eligible.`
 
     showToast(
       'warning',
@@ -1507,8 +1488,7 @@ const drawRandomWinners = (count: number) => {
     console.log(`Drawing winner ${i + 1}: ${winner.fullName} (ID: ${winner.id})`)
 
     // Record draw time
-    const currentTime = new Date().toLocaleString()
-    drawTime.value[winner.id] = currentTime
+    drawTime.value[winner.id] = new Date().toLocaleString()
 
     winners.push(winner)
   }
@@ -1517,6 +1497,7 @@ const drawRandomWinners = (count: number) => {
     'All drawn winners:',
     winners.map((w) => `${w.fullName} (${w.id})`),
   )
+
   return winners
 }
 
@@ -2432,7 +2413,7 @@ onUnmounted(() => {
             class="p-3 mb-6 bg-white border border-gray-200 shadow-sm rounded-xl sm:p-6"
           >
             <div class="mb-4">
-              <h3 class="mb-1 text-lg font-semibold text-gray-900" >Filter & Search</h3>
+              <h3 class="mb-1 text-lg font-semibold text-gray-900">Filter & Search</h3>
               <p class="text-xs text-gray-500 sm:text-sm">
                 Find specific entries or narrow down your results
               </p>
@@ -2983,13 +2964,9 @@ onUnmounted(() => {
                             'inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full border-2 hover:opacity-80 transition-all duration-200',
                             {
                               'bg-green-100 text-green-800 border-green-300 hover:bg-green-200':
-                                submission[column.key] === 'Valid' ||
-                                submission[column.key] === 'Verified' ||
-                                submission[column.key] === 'Approved',
+                                submission[column.key] === 'Valid',
                               'bg-red-100 text-red-800 border-red-300 hover:bg-red-200':
-                                submission[column.key] === 'Invalid' ||
-                                submission[column.key] === 'Pending' ||
-                                !submission[column.key],
+                                submission[column.key] === 'Invalid',
                               'opacity-75 cursor-not-allowed': statusUpdating.has(submission.id),
                             },
                           ]"
@@ -2998,15 +2975,15 @@ onUnmounted(() => {
                             v-if="statusUpdating.has(submission.id)"
                             class="w-3 h-3 border border-current rounded-full animate-spin border-t-transparent"
                           ></div>
-                          <span>{{
-                            statusUpdating.has(submission.id)
-                              ? 'Updating...'
-                              : submission[column.key] === 'Valid' ||
-                                  submission[column.key] === 'Verified' ||
-                                  submission[column.key] === 'Approved'
-                                ? 'Valid'
-                                : 'Invalid'
-                          }}</span>
+                          <span>
+                            {{
+                              statusUpdating.has(submission.id)
+                                ? 'Updating...'
+                                : submission[column.key] === 'Valid'
+                                  ? 'Valid'
+                                  : 'Invalid'
+                            }}
+                          </span>
                         </button>
                         <button
                           v-else-if="column.key === 'receiptUpload' && submission[column.key]"
@@ -3066,24 +3043,12 @@ onUnmounted(() => {
                     :class="[
                       'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
                       {
-                        'bg-green-100 text-green-800':
-                          submission.entryStatus === 'Valid' ||
-                          submission.entryStatus === 'Verified' ||
-                          submission.entryStatus === 'Approved',
-                        'bg-red-100 text-red-800':
-                          submission.entryStatus === 'Invalid' ||
-                          submission.entryStatus === 'Pending' ||
-                          !submission.entryStatus,
+                        'bg-green-100 text-green-800': submission.entryStatus === 'Valid',
+                        'bg-red-100 text-red-800': submission.entryStatus === 'Invalid',
                       },
                     ]"
                   >
-                    {{
-                      submission.entryStatus === 'Valid' ||
-                      submission.entryStatus === 'Verified' ||
-                      submission.entryStatus === 'Approved'
-                        ? 'Valid'
-                        : 'Invalid'
-                    }}
+                    {{ submission.entryStatus === 'Valid' ? 'Valid' : 'Invalid' }}
                   </div>
                 </div>
                 <div class="grid grid-cols-1 gap-2 text-sm">
@@ -3250,7 +3215,7 @@ onUnmounted(() => {
           <!-- Loading state for winners -->
           <div
             v-if="winnersLoading"
-            class="flex flex-col items-center justify-center space-y-4 h-[400px]"
+            class="flex flex-col items-center justify-center space-y-4 h-[500px]"
           >
             <div class="w-12 h-12 border-b-2 border-purple-600 rounded-full animate-spin"></div>
             <span class="font-medium text-gray-600">Loading existing winners from database...</span>
