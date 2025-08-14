@@ -11,7 +11,6 @@ import {
   loadAllWinners,
   type Submission,
   type ActivityLog,
-  type Winner,
 } from '../services/firebase'
 import { signOut, onAuthStateChanged } from 'firebase/auth'
 import {
@@ -24,7 +23,6 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import PieChart from '../components/PieChart.vue'
-import LineChart from '../components/LineChart.vue'
 import BarChart from '../components/BarChart.vue'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
@@ -60,7 +58,7 @@ const selectedBranch = ref('')
 const selectedEntryStatus = ref('')
 const startDate = ref('')
 const endDate = ref('')
-const dateRange = ref<[Date | null, Date | null] | null>(null)
+const dateRange = ref<[Date, Date] | null>(null)
 
 // Column visibility state - all columns visible by default
 const visibleColumns = ref<Record<string, boolean>>({
@@ -105,6 +103,15 @@ const selectedPrizeName = ref('')
 const drawTime = ref<Record<string, string>>({}) // Store draw time for each winner
 const winnerStatus = ref<Record<string, 'confirmed' | 'rejected'>>({}) // Track winner verification status
 const rejectionReasons = ref<Record<string, string>>({}) // Store rejection reasons by winner ID
+
+// Winner key helpers (per prize-entry tracking)
+const makeWinnerKey = (prizeName: string, winnerId: string) => `${prizeName}::${winnerId}`
+const getWinnerStatus = (prizeName: string, winnerId: string) =>
+  winnerStatus.value[makeWinnerKey(prizeName, winnerId)]
+const getRejectionReason = (prizeName: string, winnerId: string) =>
+  rejectionReasons.value[makeWinnerKey(prizeName, winnerId)]
+const getDrawTime = (prizeName: string, winnerId: string) =>
+  drawTime.value[makeWinnerKey(prizeName, winnerId)]
 
 const tabs = [
   {
@@ -457,8 +464,8 @@ const goToPage = (page: number) => {
   }
 }
 
-const handleDateRangeChange = (newDateRange: [Date | null, Date | null] | null) => {
-  if (newDateRange && newDateRange[0] && newDateRange[1]) {
+const handleDateRangeChange = (newDateRange: [Date, Date] | null) => {
+  if (newDateRange) {
     startDate.value = newDateRange[0].toISOString().split('T')[0]
     endDate.value = newDateRange[1].toISOString().split('T')[0]
   } else {
@@ -633,8 +640,8 @@ const getColumnWidth = (key: string): string => {
   }
 }
 
-const openReceiptModal = (receiptUrls: string | string[], receiptNumber: string) => {
-  const urls = Array.isArray(receiptUrls) ? receiptUrls : [receiptUrls]
+const openReceiptModal = (receiptUrls: string | string[] | undefined, receiptNumber: string) => {
+  const urls = receiptUrls ? (Array.isArray(receiptUrls) ? receiptUrls : [receiptUrls]) : []
   selectedReceipt.value = { urls, number: receiptNumber, currentIndex: 0 }
   receiptLoading.value = true
   showReceiptModal.value = true
@@ -677,7 +684,7 @@ const handleReceiptKeydown = (event: KeyboardEvent) => {
   }
 }
 
-const toggleEntryStatus = async (submission: Submission, index: number) => {
+const toggleEntryStatus = async (submission: Submission) => {
   // Prevent multiple updates on the same submission
   if (statusUpdating.value.has(submission.id)) {
     return
@@ -1061,83 +1068,10 @@ const entriesPerDayData = computed(() => {
   return data
 })
 
-const purchaseAmountData = computed(() => {
-  const ranges: Record<string, number> = {
-    '₱0 - ₱500': 0,
-    '₱501 - ₱1,000': 0,
-    '₱1,001 - ₱2,500': 0,
-    '₱2,501 - ₱5,000': 0,
-    '₱5,001+': 0,
-  }
-
-  filteredSubmissions.value.forEach((submission) => {
-    const amount = submission.purchaseAmount || 0
-    if (amount <= 500) ranges['₱0 - ₱500']++
-    else if (amount <= 1000) ranges['₱501 - ₱1,000']++
-    else if (amount <= 2500) ranges['₱1,001 - ₱2,500']++
-    else if (amount <= 5000) ranges['₱2,501 - ₱5,000']++
-    else ranges['₱5,001+']++
-  })
-
-  return {
-    labels: Object.keys(ranges),
-    datasets: [
-      {
-        label: 'Purchase Amount Distribution',
-        data: Object.values(ranges),
-        backgroundColor: [
-          'rgba(239, 68, 68, 0.8)',
-          'rgba(245, 158, 11, 0.8)',
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(59, 130, 246, 0.8)',
-          'rgba(139, 92, 246, 0.8)',
-        ],
-        borderColor: ['#dc2626', '#d97706', '#16a34a', '#2563eb', '#7c3aed'],
-        borderWidth: 1,
-      },
-    ],
-  }
-})
+// Removed unused purchaseAmountData to silence warnings
 
 // Entry Status Distribution Data
-const entryStatusData = computed(() => {
-  const statusCounts: Record<string, number> = {
-    Valid: 0,
-    Verified: 0,
-    Approved: 0,
-    Invalid: 0,
-    Pending: 0,
-    Unknown: 0,
-  }
-
-  filteredSubmissions.value.forEach((submission) => {
-    const status = submission.entryStatus || 'Unknown'
-    if (statusCounts.hasOwnProperty(status)) {
-      statusCounts[status]++
-    } else {
-      statusCounts['Unknown']++
-    }
-  })
-
-  // Filter out statuses with 0 count
-  const filteredStatuses = Object.entries(statusCounts).filter(([, count]) => count > 0)
-
-  return {
-    labels: filteredStatuses.map(([status]) => status),
-    datasets: [
-      {
-        label: 'Entry Status Distribution',
-        data: filteredStatuses.map(([, count]) => count),
-        backgroundColor: [
-          'rgba(34, 197, 94, 0.8)', // Green for Valid
-          'rgba(239, 68, 68, 0.8)', // Red for Invalid
-        ],
-        borderColor: ['#16a34a', '#dc2626'],
-        borderWidth: 1,
-      },
-    ],
-  }
-})
+// Removed unused entryStatusData to silence warnings
 
 // Top branch computed property - shows branch with most total entries
 const topBranch = computed(() => {
@@ -1253,21 +1187,22 @@ const loadExistingWinners = async () => {
 
         // Restore draw times and winner status for existing winners
         winners.forEach((winner) => {
+          const key = makeWinnerKey(prizeName, winner.submissionId)
           if (winner.drawnAt) {
             const drawTimeStr = winner.drawnAt.toDate
               ? winner.drawnAt.toDate().toLocaleString()
               : new Date(winner.drawnAt).toLocaleString()
-            drawTime.value[winner.submissionId] = drawTimeStr
+            drawTime.value[key] = drawTimeStr
           }
 
-          // Restore winner status
+          // Restore winner status per prize-entry
           if (winner.status) {
-            winnerStatus.value[winner.submissionId] = winner.status
+            winnerStatus.value[key] = winner.status
           }
 
           // Restore rejection reason if it exists
           if (winner.status === 'rejected' && winner.rejectionReason) {
-            rejectionReasons.value[winner.submissionId] = winner.rejectionReason
+            rejectionReasons.value[key] = winner.rejectionReason
           }
         })
 
@@ -1407,17 +1342,17 @@ const eligibleEntries = computed(() => {
 const getConfirmedWinsCount = (submissionId: string) => {
   let confirmedWins = 0
 
-  // Count confirmed wins in grand prizes
   grandPrizes.value.forEach((prize) => {
     confirmedWins += prize.winners.filter(
-      (winner) => winner.id === submissionId && winnerStatus.value[winner.id] === 'confirmed',
+      (winner) =>
+        winner.id === submissionId && getWinnerStatus(prize.name, winner.id) === 'confirmed',
     ).length
   })
 
-  // Count confirmed wins in consolation prizes
   consolationPrizes.value.forEach((prize) => {
     confirmedWins += prize.winners.filter(
-      (winner) => winner.id === submissionId && winnerStatus.value[winner.id] === 'confirmed',
+      (winner) =>
+        winner.id === submissionId && getWinnerStatus(prize.name, winner.id) === 'confirmed',
     ).length
   })
 
@@ -1487,9 +1422,6 @@ const drawRandomWinners = (count: number) => {
     const winner = availableEntries.splice(randomIndex, 1)[0]
     console.log(`Drawing winner ${i + 1}: ${winner.fullName} (ID: ${winner.id})`)
 
-    // Record draw time
-    drawTime.value[winner.id] = new Date().toLocaleString()
-
     winners.push(winner)
   }
 
@@ -1545,7 +1477,10 @@ const confirmWinner = async () => {
   confirmationInProgress.value = true
 
   try {
-    winnerStatus.value[selectedWinner.value.id] = 'confirmed'
+    if (!selectedPrizeName.value) return
+    const key = makeWinnerKey(selectedPrizeName.value, selectedWinner.value.id)
+    winnerStatus.value[key] = 'confirmed'
+    drawTime.value[key] = new Date().toLocaleString()
 
     // Update winner status in Firebase
     try {
@@ -1631,9 +1566,10 @@ const confirmRejectWinner = async () => {
 
     console.log(`Starting rejection process for ${selectedWinner.value.fullName}`)
 
-    // Update status immediately in UI
-    winnerStatus.value[rejectedWinnerId] = 'rejected'
-    rejectionReasons.value[rejectedWinnerId] = reason
+    // Update status immediately in UI (per prize entry)
+    const key = makeWinnerKey(prizeName, rejectedWinnerId)
+    winnerStatus.value[key] = 'rejected'
+    rejectionReasons.value[key] = reason
 
     // Update winner status in Firebase
     try {
@@ -1766,25 +1702,26 @@ const updateWinnerStatusInDatabase = async (
   }
 }
 
-const getWinnerStatusIcon = (winnerId: string) => {
-  const status = winnerStatus.value[winnerId]
+const getWinnerStatusIcon = (prizeName: string, winnerId: string) => {
+  const status = getWinnerStatus(prizeName, winnerId)
   if (status === 'confirmed') return '✓'
   if (status === 'rejected') return '✗'
   return ''
 }
 
-const hasPrizeRejections = (prizeWinners: Submission[]) => {
-  return prizeWinners.some((winner) => winnerStatus.value[winner.id] === 'rejected')
+const hasPrizeRejections = (prizeName: string, prizeWinners: Submission[]) => {
+  return prizeWinners.some((winner) => getWinnerStatus(prizeName, winner.id) === 'rejected')
 }
 
 // Get count of confirmed winners for a prize
-const getConfirmedWinnersCount = (prizeWinners: Submission[]) => {
-  return prizeWinners.filter((winner) => winnerStatus.value[winner.id] === 'confirmed').length
+const getConfirmedWinnersCount = (prizeName: string, prizeWinners: Submission[]) => {
+  return prizeWinners.filter((winner) => getWinnerStatus(prizeName, winner.id) === 'confirmed')
+    .length
 }
 
 // Get count of how many more winners are needed for a prize
 const getRemainingWinnersNeeded = (prize: any) => {
-  const confirmedCount = getConfirmedWinnersCount(prize.winners)
+  const confirmedCount = getConfirmedWinnersCount(prize.name, prize.winners)
   return Math.max(0, prize.count - confirmedCount)
 }
 
@@ -1794,10 +1731,10 @@ const isPrizeComplete = (prize: any) => {
 }
 
 // Sort winners by status: pending first, then confirmed, then rejected
-const getSortedWinners = (winners: Submission[]) => {
+const getSortedWinners = (prizeName: string, winners: Submission[]) => {
   return [...winners].sort((a, b) => {
-    const statusA = winnerStatus.value[a.id] || 'pending'
-    const statusB = winnerStatus.value[b.id] || 'pending'
+    const statusA = getWinnerStatus(prizeName, a.id) || 'pending'
+    const statusB = getWinnerStatus(prizeName, b.id) || 'pending'
 
     // Define sort order: pending = 0, confirmed = 1, rejected = 2
     const order = { pending: 0, confirmed: 1, rejected: 2 }
@@ -1809,11 +1746,14 @@ const getSortedWinners = (winners: Submission[]) => {
 const getPrizeBackgroundClass = (
   prizeWinners: Submission[],
   prizeType: 'grand' | 'consolation',
+  prizeName?: string,
 ) => {
   if (prizeWinners.length === 0) return ''
 
-  const hasRejected = hasPrizeRejections(prizeWinners)
-  const allConfirmed = prizeWinners.every((winner) => winnerStatus.value[winner.id] === 'confirmed')
+  const hasRejected = hasPrizeRejections(prizeName || '', prizeWinners)
+  const allConfirmed = prizeWinners.every(
+    (winner) => getWinnerStatus(prizeName || '', winner.id) === 'confirmed',
+  )
 
   if (hasRejected) {
     return 'bg-orange-50 border-orange-200'
@@ -1831,7 +1771,7 @@ const drawGrandPrize = async (prizeIndex: number) => {
   if (
     isPrizeComplete(prize) ||
     (prize.winners.length >= prize.count &&
-      prize.winners.filter((w) => !winnerStatus.value[w.id]).length > 0)
+      prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length > 0)
   ) {
     return
   }
@@ -1922,7 +1862,7 @@ const drawConsolationPrize = async (prizeIndex: number) => {
   if (
     isPrizeComplete(prize) ||
     (prize.winners.length >= prize.count &&
-      prize.winners.filter((w) => !winnerStatus.value[w.id]).length > 0)
+      prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length > 0)
   ) {
     return
   }
@@ -2938,7 +2878,7 @@ onUnmounted(() => {
                       </td>
                     </tr>
                     <tr
-                      v-for="(submission, index) in paginatedSubmissions"
+                      v-for="submission in paginatedSubmissions"
                       :key="submission.id"
                       class="hover:bg-gray-50"
                     >
@@ -2953,7 +2893,7 @@ onUnmounted(() => {
                       >
                         <button
                           v-if="column.key === 'entryStatus'"
-                          @click="toggleEntryStatus(submission, index)"
+                          @click="toggleEntryStatus(submission)"
                           :disabled="statusUpdating.has(submission.id)"
                           :class="[
                             'inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full border-2 hover:opacity-80 transition-all duration-200',
@@ -3458,7 +3398,8 @@ onUnmounted(() => {
                         :disabled="
                           isPrizeComplete(prize) ||
                           (prize.winners.length >= prize.count &&
-                            prize.winners.filter((w) => !winnerStatus[w.id]).length > 0) ||
+                            prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length >
+                              0) ||
                           stats.validEntries === 0 ||
                           drawingWinners.has(prize.name) ||
                           eligibleEntries.length < getRemainingWinnersNeeded(prize)
@@ -3485,11 +3426,12 @@ onUnmounted(() => {
                             : isPrizeComplete(prize)
                               ? 'Complete'
                               : prize.winners.length >= prize.count &&
-                                  prize.winners.filter((w) => !winnerStatus[w.id]).length > 0
+                                  prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id))
+                                    .length > 0
                                 ? `Pending Review (${getRemainingWinnersNeeded(prize)} more needed)`
                                 : eligibleEntries.length < getRemainingWinnersNeeded(prize)
                                   ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} available)`
-                                  : getConfirmedWinnersCount(prize.winners) === 0
+                                  : getConfirmedWinnersCount(prize.name, prize.winners) === 0
                                     ? `Draw ${prize.count} ${prize.count === 1 ? 'Winner' : 'Winners'}`
                                     : `Draw another ${getRemainingWinnersNeeded(prize)} ${getRemainingWinnersNeeded(prize) === 1 ? 'Winner' : 'Winners'}`
                         }}
@@ -3500,14 +3442,16 @@ onUnmounted(() => {
                       v-if="prize.winners.length > 0 && !drawingWinners.has(prize.name)"
                       :class="[
                         'border rounded-lg p-3',
-                        getPrizeBackgroundClass(prize.winners, 'consolation'),
+                        getPrizeBackgroundClass(prize.winners, 'consolation', prize.name),
                       ]"
                     >
                       <div class="flex items-center justify-between mb-3">
                         <h5
                           :class="[
                             'text-sm font-medium',
-                            hasPrizeRejections(prize.winners) ? 'text-orange-800' : 'text-blue-800',
+                            hasPrizeRejections(prize.name, prize.winners)
+                              ? 'text-orange-800'
+                              : 'text-blue-800',
                           ]"
                         >
                           Winners ({{ prize.winners.length }}):
@@ -3515,41 +3459,54 @@ onUnmounted(() => {
                         <div class="flex items-center gap-2 text-xs">
                           <span
                             v-if="
-                              prize.winners.filter((w) => winnerStatus[w.id] === 'confirmed')
-                                .length > 0
+                              prize.winners.filter(
+                                (w) => getWinnerStatus(prize.name, w.id) === 'confirmed',
+                              ).length > 0
                             "
                             class="inline-flex items-center px-2 py-1 font-medium text-green-800 bg-green-100 rounded-full"
                           >
                             ✓
                             {{
-                              prize.winners.filter((w) => winnerStatus[w.id] === 'confirmed').length
+                              prize.winners.filter(
+                                (w) => getWinnerStatus(prize.name, w.id) === 'confirmed',
+                              ).length
                             }}
                             Confirmed
                           </span>
                           <span
                             v-if="
-                              prize.winners.filter((w) => winnerStatus[w.id] === 'rejected')
-                                .length > 0
+                              prize.winners.filter(
+                                (w) => getWinnerStatus(prize.name, w.id) === 'rejected',
+                              ).length > 0
                             "
                             class="inline-flex items-center px-2 py-1 font-medium text-red-800 bg-red-100 rounded-full"
                           >
                             ✗
                             {{
-                              prize.winners.filter((w) => winnerStatus[w.id] === 'rejected').length
+                              prize.winners.filter(
+                                (w) => getWinnerStatus(prize.name, w.id) === 'rejected',
+                              ).length
                             }}
                             Rejected
                           </span>
                           <span
-                            v-if="prize.winners.filter((w) => !winnerStatus[w.id]).length > 0"
+                            v-if="
+                              prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id))
+                                .length > 0
+                            "
                             class="inline-flex items-center px-2 py-1 font-medium text-yellow-800 bg-yellow-100 rounded-full"
                           >
-                            ⏳ {{ prize.winners.filter((w) => !winnerStatus[w.id]).length }} Pending
+                            ⏳
+                            {{
+                              prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length
+                            }}
+                            Pending
                           </span>
                         </div>
                       </div>
                       <div class="grid gap-2">
                         <div
-                          v-for="winner in getSortedWinners(prize.winners)"
+                          v-for="winner in getSortedWinners(prize.name, prize.winners)"
                           :key="winner.id"
                           class="relative"
                         >
@@ -3557,21 +3514,21 @@ onUnmounted(() => {
                             @click="openWinnerModal(winner, prize.name)"
                             :class="[
                               'inline-flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:shadow-md border w-full',
-                              winnerStatus[winner.id] === 'confirmed'
+                              getWinnerStatus(prize.name, winner.id) === 'confirmed'
                                 ? 'bg-green-50 text-green-800 hover:bg-green-100 border-green-200'
-                                : winnerStatus[winner.id] === 'rejected'
+                                : getWinnerStatus(prize.name, winner.id) === 'rejected'
                                   ? 'bg-red-50 text-red-800 hover:bg-red-100 border-red-200'
                                   : 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100 border-yellow-200 cursor-pointer',
                             ]"
                           >
                             <div class="flex items-center gap-2">
                               <span
-                                v-if="winnerStatus[winner.id] === 'confirmed'"
+                                v-if="getWinnerStatus(prize.name, winner.id) === 'confirmed'"
                                 class="text-lg font-bold text-green-600"
                                 >✓</span
                               >
                               <span
-                                v-else-if="winnerStatus[winner.id] === 'rejected'"
+                                v-else-if="getWinnerStatus(prize.name, winner.id) === 'rejected'"
                                 class="text-lg font-bold text-red-600"
                                 >✗</span
                               >
@@ -3580,13 +3537,13 @@ onUnmounted(() => {
                             </div>
                             <div class="text-right">
                               <div
-                                v-if="winnerStatus[winner.id] === 'confirmed'"
+                                v-if="getWinnerStatus(prize.name, winner.id) === 'confirmed'"
                                 class="text-xs font-medium tracking-wide text-green-600 uppercase"
                               >
                                 Confirmed
                               </div>
                               <div
-                                v-else-if="winnerStatus[winner.id] === 'rejected'"
+                                v-else-if="getWinnerStatus(prize.name, winner.id) === 'rejected'"
                                 class="text-xs font-medium tracking-wide text-red-600 uppercase"
                               >
                                 Rejected
@@ -3644,7 +3601,8 @@ onUnmounted(() => {
                         :disabled="
                           isPrizeComplete(prize) ||
                           (prize.winners.length >= prize.count &&
-                            prize.winners.filter((w) => !winnerStatus[w.id]).length > 0) ||
+                            prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length >
+                              0) ||
                           stats.validEntries === 0 ||
                           drawingWinners.has(prize.name) ||
                           eligibleEntries.length < getRemainingWinnersNeeded(prize)
@@ -3671,11 +3629,12 @@ onUnmounted(() => {
                             : isPrizeComplete(prize)
                               ? 'Complete'
                               : prize.winners.length >= prize.count &&
-                                  prize.winners.filter((w) => !winnerStatus[w.id]).length > 0
+                                  prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id))
+                                    .length > 0
                                 ? `Pending Review (${getRemainingWinnersNeeded(prize)} more needed)`
                                 : eligibleEntries.length < getRemainingWinnersNeeded(prize)
                                   ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} available)`
-                                  : getConfirmedWinnersCount(prize.winners) === 0
+                                  : getConfirmedWinnersCount(prize.name, prize.winners) === 0
                                     ? `Draw ${prize.count} ${prize.count === 1 ? 'Winner' : 'Winners'}`
                                     : `Draw another ${getRemainingWinnersNeeded(prize)} ${getRemainingWinnersNeeded(prize) === 1 ? 'Winner' : 'Winners'}`
                         }}
@@ -3686,14 +3645,14 @@ onUnmounted(() => {
                       v-if="prize.winners.length > 0 && !drawingWinners.has(prize.name)"
                       :class="[
                         'border rounded-lg p-3',
-                        getPrizeBackgroundClass(prize.winners, 'grand'),
+                        getPrizeBackgroundClass(prize.winners, 'grand', prize.name),
                       ]"
                     >
                       <div class="flex items-center justify-between mb-3">
                         <h5
                           :class="[
                             'text-sm font-medium',
-                            hasPrizeRejections(prize.winners)
+                            hasPrizeRejections(prize.name, prize.winners)
                               ? 'text-orange-800'
                               : 'text-green-800',
                           ]"
@@ -3703,41 +3662,54 @@ onUnmounted(() => {
                         <div class="flex items-center gap-2 text-xs">
                           <span
                             v-if="
-                              prize.winners.filter((w) => winnerStatus[w.id] === 'confirmed')
-                                .length > 0
+                              prize.winners.filter(
+                                (w) => getWinnerStatus(prize.name, w.id) === 'confirmed',
+                              ).length > 0
                             "
                             class="inline-flex items-center px-2 py-1 font-medium text-green-800 bg-green-100 rounded-full"
                           >
                             ✓
                             {{
-                              prize.winners.filter((w) => winnerStatus[w.id] === 'confirmed').length
+                              prize.winners.filter(
+                                (w) => getWinnerStatus(prize.name, w.id) === 'confirmed',
+                              ).length
                             }}
                             Confirmed
                           </span>
                           <span
                             v-if="
-                              prize.winners.filter((w) => winnerStatus[w.id] === 'rejected')
-                                .length > 0
+                              prize.winners.filter(
+                                (w) => getWinnerStatus(prize.name, w.id) === 'rejected',
+                              ).length > 0
                             "
                             class="inline-flex items-center px-2 py-1 font-medium text-red-800 bg-red-100 rounded-full"
                           >
                             ✗
                             {{
-                              prize.winners.filter((w) => winnerStatus[w.id] === 'rejected').length
+                              prize.winners.filter(
+                                (w) => getWinnerStatus(prize.name, w.id) === 'rejected',
+                              ).length
                             }}
                             Rejected
                           </span>
                           <span
-                            v-if="prize.winners.filter((w) => !winnerStatus[w.id]).length > 0"
+                            v-if="
+                              prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id))
+                                .length > 0
+                            "
                             class="inline-flex items-center px-2 py-1 font-medium text-yellow-800 bg-yellow-100 rounded-full"
                           >
-                            ⏳ {{ prize.winners.filter((w) => !winnerStatus[w.id]).length }} Pending
+                            ⏳
+                            {{
+                              prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length
+                            }}
+                            Pending
                           </span>
                         </div>
                       </div>
                       <div class="space-y-2">
                         <div
-                          v-for="winner in getSortedWinners(prize.winners)"
+                          v-for="winner in getSortedWinners(prize.name, prize.winners)"
                           :key="winner.id"
                           class="relative"
                         >
@@ -3745,9 +3717,9 @@ onUnmounted(() => {
                             @click="openWinnerModal(winner, prize.name)"
                             :class="[
                               'inline-flex flex-col items-start gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:shadow-md border w-full',
-                              winnerStatus[winner.id] === 'confirmed'
+                              getWinnerStatus(prize.name, winner.id) === 'confirmed'
                                 ? 'bg-green-50 text-green-800 hover:bg-green-100 border-green-200'
-                                : winnerStatus[winner.id] === 'rejected'
+                                : getWinnerStatus(prize.name, winner.id) === 'rejected'
                                   ? 'bg-red-50 text-red-800 hover:bg-red-100 border-red-200'
                                   : 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100 border-yellow-200 cursor-pointer',
                             ]"
@@ -3756,12 +3728,14 @@ onUnmounted(() => {
                               <div class="flex items-center gap-2">
                                 <div class="flex items-center gap-1">
                                   <span
-                                    v-if="winnerStatus[winner.id] === 'confirmed'"
+                                    v-if="getWinnerStatus(prize.name, winner.id) === 'confirmed'"
                                     class="text-lg font-bold text-green-600"
                                     >✓</span
                                   >
                                   <span
-                                    v-else-if="winnerStatus[winner.id] === 'rejected'"
+                                    v-else-if="
+                                      getWinnerStatus(prize.name, winner.id) === 'rejected'
+                                    "
                                     class="text-lg font-bold text-red-600"
                                     >✗</span
                                   >
@@ -3771,13 +3745,13 @@ onUnmounted(() => {
                               </div>
                               <div class="text-right">
                                 <div
-                                  v-if="winnerStatus[winner.id] === 'confirmed'"
+                                  v-if="getWinnerStatus(prize.name, winner.id) === 'confirmed'"
                                   class="text-xs font-medium tracking-wide text-green-600 uppercase"
                                 >
                                   Confirmed
                                 </div>
                                 <div
-                                  v-else-if="winnerStatus[winner.id] === 'rejected'"
+                                  v-else-if="getWinnerStatus(prize.name, winner.id) === 'rejected'"
                                   class="text-xs font-medium tracking-wide text-red-600 uppercase"
                                 >
                                   Rejected
@@ -3792,17 +3766,17 @@ onUnmounted(() => {
                             </div>
                             <div class="w-full mt-1">
                               <div class="text-xs text-left opacity-75">
-                                <span v-if="drawTime[winner.id]"
-                                  >Drew: {{ drawTime[winner.id] }}</span
+                                <span v-if="getDrawTime(prize.name, winner.id)"
+                                  >Drew: {{ getDrawTime(prize.name, winner.id) }}</span
                                 >
                                 <span
                                   v-if="
-                                    winnerStatus[winner.id] === 'rejected' &&
-                                    rejectionReasons[winner.id]
+                                    getWinnerStatus(prize.name, winner.id) === 'rejected' &&
+                                    getRejectionReason(prize.name, winner.id)
                                   "
                                   class="block mt-1 text-red-600"
                                 >
-                                  Reason: {{ rejectionReasons[winner.id] }}
+                                  Reason: {{ getRejectionReason(prize.name, winner.id) }}
                                 </span>
                               </div>
                             </div>
@@ -3832,21 +3806,23 @@ onUnmounted(() => {
                       <span class="font-medium text-blue-700">{{ prize.name }}:</span>
                       <div class="flex flex-wrap gap-1 mt-1">
                         <button
-                          v-for="winner in getSortedWinners(prize.winners)"
+                          v-for="winner in getSortedWinners(prize.name, prize.winners)"
                           :key="winner.id"
                           @click="openWinnerModal(winner, prize.name)"
                           :class="[
                             'inline-flex items-center gap-1 px-2 py-1 rounded text-xs transition-all duration-200 hover:shadow-sm',
-                            winnerStatus[winner.id] === 'confirmed'
+                            getWinnerStatus(prize.name, winner.id) === 'confirmed'
                               ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                              : winnerStatus[winner.id] === 'rejected'
+                              : getWinnerStatus(prize.name, winner.id) === 'rejected'
                                 ? 'bg-red-100 text-red-800 hover:bg-red-200'
                                 : 'bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer',
                           ]"
                         >
-                          <span v-if="getWinnerStatusIcon(winner.id)" class="text-xs font-bold">{{
-                            getWinnerStatusIcon(winner.id)
-                          }}</span>
+                          <span
+                            v-if="getWinnerStatusIcon(prize.name, winner.id)"
+                            class="text-xs font-bold"
+                            >{{ getWinnerStatusIcon(prize.name, winner.id) }}</span
+                          >
                           {{ winner.fullName }}
                         </button>
                       </div>
@@ -3867,21 +3843,23 @@ onUnmounted(() => {
                       <span class="font-medium text-yellow-700">{{ prize.name }}:</span>
                       <div class="flex flex-wrap gap-1 mt-1">
                         <button
-                          v-for="winner in getSortedWinners(prize.winners)"
+                          v-for="winner in getSortedWinners(prize.name, prize.winners)"
                           :key="winner.id"
                           @click="openWinnerModal(winner, prize.name)"
                           :class="[
                             'inline-flex items-center gap-1 px-2 py-1 rounded text-xs transition-all duration-200 hover:shadow-sm',
-                            winnerStatus[winner.id] === 'confirmed'
+                            getWinnerStatus(prize.name, winner.id) === 'confirmed'
                               ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                              : winnerStatus[winner.id] === 'rejected'
+                              : getWinnerStatus(prize.name, winner.id) === 'rejected'
                                 ? 'bg-red-100 text-red-800 hover:bg-red-200'
                                 : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 cursor-pointer',
                           ]"
                         >
-                          <span v-if="getWinnerStatusIcon(winner.id)" class="text-xs font-bold">{{
-                            getWinnerStatusIcon(winner.id)
-                          }}</span>
+                          <span
+                            v-if="getWinnerStatusIcon(prize.name, winner.id)"
+                            class="text-xs font-bold"
+                            >{{ getWinnerStatusIcon(prize.name, winner.id) }}</span
+                          >
                           {{ winner.fullName }}
                         </button>
                       </div>
@@ -4140,8 +4118,9 @@ onUnmounted(() => {
                             boxHeight: 14,
                             generateLabels: function (chart) {
                               const data = chart.data
-                              if (data.labels.length && data.datasets.length) {
-                                return data.labels.map((label, i) => {
+                              const labels = data.labels || []
+                              if (labels.length && data.datasets.length) {
+                                return labels.map((label, i) => {
                                   const dataset = data.datasets[0]
                                   const value = dataset.data[i] as number
                                   const total = (dataset.data as number[]).reduce(
@@ -4405,20 +4384,22 @@ onUnmounted(() => {
             <div
               :class="[
                 'inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium',
-                winnerStatus[selectedWinner.id] === 'confirmed'
+                getWinnerStatus(selectedPrizeName, selectedWinner.id) === 'confirmed'
                   ? 'bg-green-100 text-green-800'
-                  : winnerStatus[selectedWinner.id] === 'rejected'
+                  : getWinnerStatus(selectedPrizeName, selectedWinner.id) === 'rejected'
                     ? 'bg-red-100 text-red-800'
                     : 'bg-yellow-100 text-yellow-800',
               ]"
             >
-              <span v-if="getWinnerStatusIcon(selectedWinner.id)" class="text-lg">{{
-                getWinnerStatusIcon(selectedWinner.id)
-              }}</span>
+              <span
+                v-if="getWinnerStatusIcon(selectedPrizeName, selectedWinner.id)"
+                class="text-lg"
+                >{{ getWinnerStatusIcon(selectedPrizeName, selectedWinner.id) }}</span
+              >
               <span>{{
-                winnerStatus[selectedWinner.id] === 'confirmed'
+                getWinnerStatus(selectedPrizeName, selectedWinner.id) === 'confirmed'
                   ? 'Confirmed Winner'
-                  : winnerStatus[selectedWinner.id] === 'rejected'
+                  : getWinnerStatus(selectedPrizeName, selectedWinner.id) === 'rejected'
                     ? 'Rejected'
                     : 'Pending Verification'
               }}</span>
@@ -4494,19 +4475,23 @@ onUnmounted(() => {
 
               <div>
                 <label class="block mb-1 text-sm font-medium text-gray-700">Draw Time</label>
-                <p class="font-medium text-gray-900">{{ drawTime[selectedWinner.id] || 'N/A' }}</p>
+                <p class="font-medium text-gray-900">
+                  {{ getDrawTime(selectedPrizeName, selectedWinner.id) || 'N/A' }}
+                </p>
               </div>
 
               <!-- Rejection Reason (only show if rejected) -->
               <div
                 v-if="
-                  winnerStatus[selectedWinner.id] === 'rejected' &&
-                  rejectionReasons[selectedWinner.id]
+                  getWinnerStatus(selectedPrizeName, selectedWinner.id) === 'rejected' &&
+                  getRejectionReason(selectedPrizeName, selectedWinner.id)
                 "
               >
                 <label class="block mb-1 text-sm font-medium text-red-700">Rejection Reason</label>
                 <div class="p-3 border border-red-200 rounded-lg bg-red-50">
-                  <p class="text-sm text-red-800">{{ rejectionReasons[selectedWinner.id] }}</p>
+                  <p class="text-sm text-red-800">
+                    {{ getRejectionReason(selectedPrizeName, selectedWinner.id) }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -4555,7 +4540,10 @@ onUnmounted(() => {
           <div class="flex justify-center pt-6 mt-8 space-x-4 border-t border-gray-200">
             <button
               @click="confirmWinner"
-              :disabled="winnerStatus[selectedWinner.id] === 'confirmed' || confirmationInProgress"
+              :disabled="
+                getWinnerStatus(selectedPrizeName, selectedWinner.id) === 'confirmed' ||
+                confirmationInProgress
+              "
               class="flex items-center px-6 py-3 space-x-2 font-medium text-white transition-colors duration-200 bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed"
             >
               <svg
@@ -4583,7 +4571,7 @@ onUnmounted(() => {
               <span>{{
                 confirmationInProgress
                   ? 'Processing...'
-                  : winnerStatus[selectedWinner.id] === 'confirmed'
+                  : getWinnerStatus(selectedPrizeName, selectedWinner.id) === 'confirmed'
                     ? 'Confirmed'
                     : 'Confirm Winner'
               }}</span>
@@ -4591,7 +4579,7 @@ onUnmounted(() => {
 
             <button
               @click="rejectWinner"
-              :disabled="winnerStatus[selectedWinner.id] === 'rejected'"
+              :disabled="getWinnerStatus(selectedPrizeName, selectedWinner.id) === 'rejected'"
               class="flex items-center px-6 py-3 space-x-2 font-medium text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4603,7 +4591,9 @@ onUnmounted(() => {
                 />
               </svg>
               <span>{{
-                winnerStatus[selectedWinner.id] === 'rejected' ? 'Rejected' : 'Reject Winner'
+                getWinnerStatus(selectedPrizeName, selectedWinner.id) === 'rejected'
+                  ? 'Rejected'
+                  : 'Reject Winner'
               }}</span>
             </button>
           </div>
@@ -4791,8 +4781,8 @@ onUnmounted(() => {
               class="absolute flex p-2 space-x-2 transform -translate-x-1/2 bg-black bg-opacity-50 rounded-lg bottom-4 left-1/2"
             >
               <button
-                v-for="(url, index) in selectedReceipt.urls"
-                :key="index"
+                v-for="(_, index) in selectedReceipt.urls"
+                :key="`thumb-` + index"
                 @click="
                   () => {
                     selectedReceipt.currentIndex = index
