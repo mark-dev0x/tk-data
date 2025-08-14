@@ -318,7 +318,7 @@ const loadActivityLogs = async () => {
 // Toggle activity log modal
 const toggleActivityLogModal = async () => {
   showActivityLogModal.value = !showActivityLogModal.value
-  if (showActivityLogModal.value && activityLogs.value.length === 0) {
+  if (showActivityLogModal.value) {
     await loadActivityLogs()
   }
 }
@@ -670,17 +670,22 @@ const previousImage = () => {
 }
 
 const handleReceiptKeydown = (event: KeyboardEvent) => {
-  if (!showReceiptModal.value || selectedReceipt.value.urls.length <= 1) return
+  if (!showReceiptModal.value) return
 
-  if (event.key === 'ArrowLeft') {
-    event.preventDefault()
-    previousImage()
-  } else if (event.key === 'ArrowRight') {
-    event.preventDefault()
-    nextImage()
-  } else if (event.key === 'Escape') {
+  if (event.key === 'Escape') {
     event.preventDefault()
     closeReceiptModal()
+    return
+  }
+
+  if (selectedReceipt.value.urls.length > 1) {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      previousImage()
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      nextImage()
+    }
   }
 }
 
@@ -1312,12 +1317,26 @@ const isAnyPrizeDrawn = computed(() => {
   )
 })
 
-const totalGrandWinners = computed(() => {
-  return grandPrizes.value.reduce((sum, prize) => sum + prize.winners.length, 0)
+// Deprecated in favor of displayedTotal* which hides active drawings
+// const totalGrandWinners = computed(() => {
+//   return grandPrizes.value.reduce((sum, prize) => sum + prize.winners.length, 0)
+// })
+
+// const totalConsolationWinners = computed(() => {
+//   return consolationPrizes.value.reduce((sum, prize) => sum + prize.winners.length, 0)
+// })
+
+// Visible counts for Winner Summary (hide winners for prizes still drawing)
+const displayedTotalGrandWinners = computed(() => {
+  return grandPrizes.value
+    .filter((p) => !drawingWinners.value.has(p.name))
+    .reduce((sum, prize) => sum + prize.winners.length, 0)
 })
 
-const totalConsolationWinners = computed(() => {
-  return consolationPrizes.value.reduce((sum, prize) => sum + prize.winners.length, 0)
+const displayedTotalConsolationWinners = computed(() => {
+  return consolationPrizes.value
+    .filter((p) => !drawingWinners.value.has(p.name))
+    .reduce((sum, prize) => sum + prize.winners.length, 0)
 })
 
 // Prize drawing functions - using computed for better reactivity
@@ -1459,15 +1478,19 @@ const openWinnerModal = (winner: Submission, prizeName: string) => {
   selectedWinner.value = winner
   selectedPrizeName.value = prizeName
   showWinnerModal.value = true
+  document.addEventListener('keydown', handleWinnerKeydown)
 }
 
 const closeWinnerModal = () => {
   showWinnerModal.value = false
   selectedWinner.value = null
   selectedPrizeName.value = ''
+  document.removeEventListener('keydown', handleWinnerKeydown)
 }
 
 const confirmationInProgress = ref(false)
+// Insights charts layout toggle (PC mode)
+const chartsStacked = ref(false)
 
 const confirmWinner = async () => {
   if (!selectedWinner.value || confirmationInProgress.value) {
@@ -1479,8 +1502,6 @@ const confirmWinner = async () => {
   try {
     if (!selectedPrizeName.value) return
     const key = makeWinnerKey(selectedPrizeName.value, selectedWinner.value.id)
-    winnerStatus.value[key] = 'confirmed'
-    drawTime.value[key] = new Date().toLocaleString()
 
     // Update winner status in Firebase
     try {
@@ -1493,6 +1514,9 @@ const confirmWinner = async () => {
         'confirmed',
       )
       console.log(`✅ Winner ${selectedWinner.value.fullName} confirmed and updated in database`)
+      // Reflect local state only after successful DB update
+      winnerStatus.value[key] = 'confirmed'
+      drawTime.value[key] = new Date().toLocaleString()
     } catch (error) {
       console.error('❌ Failed to update winner status in database:', error)
       alert(
@@ -1566,10 +1590,7 @@ const confirmRejectWinner = async () => {
 
     console.log(`Starting rejection process for ${selectedWinner.value.fullName}`)
 
-    // Update status immediately in UI (per prize entry)
     const key = makeWinnerKey(prizeName, rejectedWinnerId)
-    winnerStatus.value[key] = 'rejected'
-    rejectionReasons.value[key] = reason
 
     // Update winner status in Firebase
     try {
@@ -1578,6 +1599,9 @@ const confirmRejectWinner = async () => {
       )
       await updateWinnerStatusInDatabase(rejectedWinnerId, prizeName, 'rejected', reason)
       console.log(`✅ Winner ${selectedWinner.value.fullName} rejected and updated in database`)
+      // Reflect local state only after successful DB update
+      winnerStatus.value[key] = 'rejected'
+      rejectionReasons.value[key] = reason
     } catch (error) {
       console.error('❌ Failed to update winner status in database:', error)
       alert(
@@ -1633,6 +1657,19 @@ const confirmRejectWinner = async () => {
     )
   } finally {
     rejectionInProgress.value = false
+  }
+}
+
+const handleWinnerKeydown = (event: KeyboardEvent) => {
+  if (!showWinnerModal.value) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    // If rejection dialog is open, close that first
+    if (showRejectReasonModal.value) {
+      closeRejectReasonModal()
+    } else {
+      closeWinnerModal()
+    }
   }
 }
 
@@ -3533,7 +3570,9 @@ onUnmounted(() => {
                                 >✗</span
                               >
                               <span v-else class="text-lg font-bold text-yellow-600">⏳</span>
-                              <span class="font-semibold">{{ winner.fullName }}</span>
+                              <span class="font-semibold truncate max-w-[60%] sm:max-w-none">
+                                {{ winner.fullName }}
+                              </span>
                             </div>
                             <div class="text-right">
                               <div
@@ -3740,7 +3779,9 @@ onUnmounted(() => {
                                     >✗</span
                                   >
                                   <span v-else class="text-lg font-bold text-yellow-600">⏳</span>
-                                  <span class="font-semibold">{{ winner.fullName }}</span>
+                                  <span class="font-semibold truncate max-w-[60%] sm:max-w-none">
+                                    {{ winner.fullName }}
+                                  </span>
                                 </div>
                               </div>
                               <div class="text-right">
@@ -3795,11 +3836,13 @@ onUnmounted(() => {
               <div class="grid gap-6 md:grid-cols-2">
                 <div v-if="consolationPrizes.some((p) => p.winners.length > 0)">
                   <h4 class="mb-2 font-semibold text-gray-800">
-                    Consolation Prize Winners ({{ totalConsolationWinners }})
+                    Consolation Prize Winners ({{ displayedTotalConsolationWinners }})
                   </h4>
                   <div class="space-y-3">
                     <div
-                      v-for="prize in consolationPrizes.filter((p) => p.winners.length > 0)"
+                      v-for="prize in consolationPrizes.filter(
+                        (p) => p.winners.length > 0 && !drawingWinners.has(p.name),
+                      )"
                       :key="prize.name"
                       class="text-sm"
                     >
@@ -3810,7 +3853,7 @@ onUnmounted(() => {
                           :key="winner.id"
                           @click="openWinnerModal(winner, prize.name)"
                           :class="[
-                            'inline-flex items-center gap-1 px-2 py-1 rounded text-xs transition-all duration-200 hover:shadow-sm',
+                            'inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-sm transition-all duration-200 hover:shadow-sm',
                             getWinnerStatus(prize.name, winner.id) === 'confirmed'
                               ? 'bg-green-100 text-green-800 hover:bg-green-200'
                               : getWinnerStatus(prize.name, winner.id) === 'rejected'
@@ -3820,10 +3863,12 @@ onUnmounted(() => {
                         >
                           <span
                             v-if="getWinnerStatusIcon(prize.name, winner.id)"
-                            class="text-xs font-bold"
+                            class="text-sm font-bold"
                             >{{ getWinnerStatusIcon(prize.name, winner.id) }}</span
                           >
-                          {{ winner.fullName }}
+                          <span class="font-semibold text-sm">
+                            {{ winner.fullName }}
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -3832,11 +3877,13 @@ onUnmounted(() => {
 
                 <div v-if="grandPrizes.some((p) => p.winners.length > 0)">
                   <h4 class="mb-2 font-semibold text-gray-800">
-                    Grand Prize Winners ({{ totalGrandWinners }})
+                    Grand Prize Winners ({{ displayedTotalGrandWinners }})
                   </h4>
                   <div class="space-y-3">
                     <div
-                      v-for="prize in grandPrizes.filter((p) => p.winners.length > 0)"
+                      v-for="prize in grandPrizes.filter(
+                        (p) => p.winners.length > 0 && !drawingWinners.has(p.name),
+                      )"
                       :key="prize.name"
                       class="text-sm"
                     >
@@ -3847,7 +3894,7 @@ onUnmounted(() => {
                           :key="winner.id"
                           @click="openWinnerModal(winner, prize.name)"
                           :class="[
-                            'inline-flex items-center gap-1 px-2 py-1 rounded text-xs transition-all duration-200 hover:shadow-sm',
+                            'inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-sm transition-all duration-200 hover:shadow-sm',
                             getWinnerStatus(prize.name, winner.id) === 'confirmed'
                               ? 'bg-green-100 text-green-800 hover:bg-green-200'
                               : getWinnerStatus(prize.name, winner.id) === 'rejected'
@@ -3857,10 +3904,12 @@ onUnmounted(() => {
                         >
                           <span
                             v-if="getWinnerStatusIcon(prize.name, winner.id)"
-                            class="text-xs font-bold"
+                            class="text-sm font-bold"
                             >{{ getWinnerStatusIcon(prize.name, winner.id) }}</span
                           >
-                          {{ winner.fullName }}
+                          <span class="font-semibold text-sm">
+                            {{ winner.fullName }}
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -3874,7 +3923,51 @@ onUnmounted(() => {
         <!-- Insights Tab -->
         <div v-else-if="activeTab === 'insights'" class="p-3 sm:p-6">
           <div>
-            <h2 class="mb-3 text-2xl font-bold text-gray-900 sm:mb-6">Insights & Analytics</h2>
+            <div class="flex items-center justify-between mb-3 sm:mb-6">
+              <h2 class="text-2xl font-bold text-gray-900">Insights & Analytics</h2>
+              <!-- Layout toggle (Desktop only) -->
+              <button
+                class="hidden md:inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-full border border-gray-300 bg-white shadow-sm hover:shadow transition-all hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                :title="chartsStacked ? 'Switch to Grid layout' : 'Switch to Stacked layout'"
+                @click="chartsStacked = !chartsStacked"
+              >
+                <div
+                  :class="[
+                    'inline-flex items-center justify-center w-6 h-6 rounded-full',
+                    chartsStacked ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-700',
+                  ]"
+                >
+                  <svg
+                    v-if="!chartsStacked"
+                    class="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <rect x="3" y="3" width="8" height="8" rx="1" />
+                    <rect x="13" y="3" width="8" height="8" rx="1" />
+                    <rect x="3" y="13" width="8" height="8" rx="1" />
+                    <rect x="13" y="13" width="8" height="8" rx="1" />
+                  </svg>
+                  <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <rect x="3" y="3" width="18" height="5" rx="1" />
+                    <rect x="3" y="10" width="18" height="5" rx="1" />
+                    <rect x="3" y="17" width="18" height="4" rx="1" />
+                  </svg>
+                </div>
+                <span class="font-medium text-gray-700">Layout:</span>
+                <span
+                  :class="[
+                    'px-2 py-0.5 rounded text-xs font-semibold border',
+                    chartsStacked
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : 'bg-gray-50 text-gray-700 border-gray-200',
+                  ]"
+                >
+                  {{ chartsStacked ? 'Stacked' : 'Grid' }}
+                </span>
+              </button>
+            </div>
 
             <!-- Top Stats Row -->
             <div class="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-6 sm:gap-4 sm:mb-8">
@@ -3938,7 +4031,13 @@ onUnmounted(() => {
             </div>
 
             <!-- Charts Grid -->
-            <div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2 sm:mb-8">
+            <div
+              :class="
+                chartsStacked
+                  ? 'flex flex-col gap-6 mb-6 sm:mb-8'
+                  : 'grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2 sm:mb-8'
+              "
+            >
               <!-- Entries by Branch -->
               <div class="p-3 bg-white border border-gray-200 rounded-lg sm:p-6">
                 <div class="mb-4">
@@ -4235,7 +4334,13 @@ onUnmounted(() => {
             </div>
 
             <!-- Additional Analytics -->
-            <div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2 sm:mb-8">
+            <div
+              :class="
+                chartsStacked
+                  ? 'flex flex-col gap-6 mb-6 sm:mb-8'
+                  : 'grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2 sm:mb-8'
+              "
+            >
               <!-- Summary Statistics -->
               <div class="p-6 bg-white border border-gray-200 rounded-lg">
                 <h3 class="mb-4 text-lg font-semibold text-gray-900">Summary Statistics</h3>
