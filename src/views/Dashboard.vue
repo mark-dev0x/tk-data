@@ -1722,7 +1722,7 @@ const updateWinnerStatusInDatabase = async (
       'Discovery Suites': 'discoverySuites',
       'Gift Box': 'giftBox',
       '₱1,000 Gift Certificates': 'giftCert_1000',
-      '��1,500 Gift Certificates': 'giftCert_1500',
+      '₱1,500 Gift Certificates': 'giftCert_1500',
       '₱2,000 Gift Certificates': 'giftCert_2000',
     }
 
@@ -1758,7 +1758,7 @@ const updateWinnerStatusInDatabase = async (
 
     await Promise.all(updatePromises)
     console.log(
-      `�� Successfully updated ${querySnapshot.docs.length} winner document(s) to status '${status}' in collection '${collectionName}' for prize '${prizeName}' (submission ID: ${winnerId})`,
+      `Successfully updated ${querySnapshot.docs.length} winner document(s) to status '${status}' in collection '${collectionName}' for prize '${prizeName}' (submission ID: ${winnerId})`,
     )
   } catch (error) {
     console.error('Failed to update winner status in database:', error)
@@ -1791,11 +1791,6 @@ const getRemainingWinnersNeeded = (prize: any) => {
 // Check if prize drawing is complete (has enough confirmed winners)
 const isPrizeComplete = (prize: any) => {
   return getRemainingWinnersNeeded(prize) === 0
-}
-
-// Check if prize has drawn all winners (regardless of confirmation status)
-const isPrizeDrawingComplete = (prize: any) => {
-  return prize.winners.length >= prize.count
 }
 
 // Sort winners by status: pending first, then confirmed, then rejected
