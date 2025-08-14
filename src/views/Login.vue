@@ -1,16 +1,16 @@
 <template>
   <div class="h-[100dvh] flex w-full">
     <div class="hidden lg:flex flex-1 bg-[#d14124] min-w-[400px]">
-      <div class="h-screen w-full max-w-6xl items-center justify-center ml-auto p-4 flex">
+      <div class="h-screen w-full max-w-6xl items-center justify-center ml-auto p-10 flex">
         <img src="/imgs/tk-logo.webp" alt="Tapa King logo" class="w-[600px]" />
       </div>
     </div>
     <div
-      class="bg-c-beige min-h-full flex flex-col items-center p-8 lg:w-[600px] w-full lg:p-18 md:pt-26"
+      class="bg-c-beige min-h-full flex flex-col items-center w-full sm:max-w-xl py-10 px-5 sm:py-20"
     >
       <img src="/imgs/tk-logo-red.png" alt="tpk-logo" class="mx-auto w-56" />
 
-      <div class="max-w-md w-full flex-1 flex flex-col items-center justify-center px-0 sm:px-10">
+      <div class="w-full flex-1 flex flex-col items-center justify-center px-0 sm:px-10">
         <h1 class="w-full text-[#d14124] text-left text-5xl font-squad font-heavyyy -tracking-wide">
           Welcome,
         </h1>
