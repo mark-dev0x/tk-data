@@ -3440,13 +3440,7 @@ onUnmounted(() => {
                       <div class="flex items-center space-x-2">
                         <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                         <span class="font-medium text-gray-700"
-                          >{{ eligibleEntries.length }} Unique Users Eligible</span
-                        >
-                      </div>
-                      <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span class="font-medium text-gray-700"
-                          >{{ validEntriesList.length }} Total Valid Entries</span
+                          >{{ eligibleEntries.length }} Eligible Users</span
                         >
                       </div>
                       <div class="flex items-center space-x-2">
