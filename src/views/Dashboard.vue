@@ -1351,9 +1351,10 @@ const displayedTotalConsolationWinners = computed(() => {
 })
 
 // Prize drawing functions - using computed for better reactivity
+// Eligible entries: users with valid entries and at least 1 entry left (not yet used for wins)
 const eligibleEntries = computed(() => {
   const eligible = submissions.value.filter(
-    (submission) => submission.entryStatus === 'Valid' && !hasUserWonAnyPrize(submission.id), // User can only win once across all prizes
+    (submission) => submission.entryStatus === 'Valid' && getUserEntriesLeft(submission.id) > 0,
   )
 
   console.log('Total submissions:', submissions.value.length)
@@ -1361,7 +1362,7 @@ const eligibleEntries = computed(() => {
     'Valid submissions:',
     submissions.value.filter((s) => s.entryStatus === 'Valid').length,
   )
-  console.log("Eligible entries (users who haven't won any prize yet):", eligible.length)
+  console.log("Eligible entries (users with entries left):", eligible.length)
 
   return eligible
 })
@@ -1387,19 +1388,69 @@ const getConfirmedWinsCount = (submissionId: string) => {
   return confirmedWins
 }
 
-// Helper function to check if user has already won ANY prize (confirmed or rejected)
-const hasUserWonAnyPrize = (submissionId: string) => {
-  // Check if user has won any grand prize
-  const hasWonGrandPrize = grandPrizes.value.some((prize) =>
-    prize.winners.some((winner) => winner.id === submissionId),
-  )
 
-  // Check if user has won any consolation prize
-  const hasWonConsolationPrize = consolationPrizes.value.some((prize) =>
-    prize.winners.some((winner) => winner.id === submissionId),
-  )
+// --- NEW LOGIC: Multi-round raffle, user can win once per round, but can win again in future rounds if they have entries left ---
+// Track how many times each user has won
+const userWinCounts = computed(() => {
+  const counts: Record<string, number> = {}
+  ;[...grandPrizes.value, ...consolationPrizes.value].forEach((prize) => {
+    prize.winners.forEach((winner) => {
+      counts[winner.id] = (counts[winner.id] || 0) + 1
+    })
+  })
+  return counts
+})
 
-  return hasWonGrandPrize || hasWonConsolationPrize
+// Helper: Get how many entries a user has
+const getUserEntries = (submissionId: string) => {
+  const sub = submissions.value.find((s) => s.id === submissionId)
+  return sub?.raffleEntries || 1
+}
+
+// Helper: Get how many entries a user has left (not yet used for wins)
+const getUserEntriesLeft = (submissionId: string) => {
+  return getUserEntries(submissionId) - (userWinCounts.value[submissionId] || 0)
+}
+
+// Helper: For a given round, get eligible entries (users who have entries left and haven't won in this round)
+// roundWinners: Set of user IDs who have already won in this round
+const getEligibleEntriesForRound = (roundWinners: Set<string>) => {
+  // Build a pool of entries, each entry is a ticket
+  const pool: Submission[] = []
+  submissions.value.forEach((submission) => {
+    if (submission.entryStatus === 'Valid') {
+      const entriesLeft = getUserEntriesLeft(submission.id)
+      if (entriesLeft > 0 && !roundWinners.has(submission.id)) {
+        for (let i = 0; i < entriesLeft; i++) {
+          pool.push(submission)
+        }
+      }
+    }
+  })
+  return pool
+}
+
+// Draw winners for a round (user can only win once per round, but can win again in future rounds if entries remain)
+// count: number of winners to draw for this round
+// roundWinners: Set<string> of user IDs who have already won in this round
+const drawWinnersForRound = (count: number, roundWinners: Set<string>) => {
+  const pool = getEligibleEntriesForRound(roundWinners)
+  const winners: Submission[] = []
+  const pickedUserIds = new Set<string>()
+  for (let i = 0; i < count && pool.length > 0; i++) {
+    // Filter pool to only users who haven't won in this round
+    const available = pool.filter((entry) => !pickedUserIds.has(entry.id))
+    if (available.length === 0) break
+    const randomIndex = Math.floor(Math.random() * available.length)
+    const winner = available[randomIndex]
+    winners.push(winner)
+    pickedUserIds.add(winner.id)
+    // Remove all tickets for this user from pool for this round
+    for (let j = pool.length - 1; j >= 0; j--) {
+      if (pool[j].id === winner.id) pool.splice(j, 1)
+    }
+  }
+  return winners
 }
 
 // Helper function to get count of unique users who have won any prize
@@ -1441,60 +1492,11 @@ watch(
   { deep: true, immediate: false },
 )
 
+
+// Deprecated: drawRandomWinners (use drawWinnersForRound for multi-round logic)
 const drawRandomWinners = (count: number) => {
-  const eligible = getEligibleEntries()
-  const winners: Submission[] = []
-
-  console.log(`Attempting to draw ${count} winners from ${eligible.length} eligible entries`)
-
-  if (eligible.length < count) {
-    console.error(`Not enough eligible entries! Available: ${eligible.length}, Needed: ${count}`)
-
-    // Get detailed breakdown for better debugging
-    const totalEntries = submissions.value.length
-    const validEntries = submissions.value.filter((s) => s.entryStatus === 'Valid').length
-    const usersWhoWonPrizes = submissions.value.filter((s) => hasUserWonAnyPrize(s.id)).length
-
-    console.log('Entry breakdown:', {
-      total: totalEntries,
-      valid: validEntries,
-      usersWhoWonPrizes: usersWhoWonPrizes,
-      eligible: eligible.length,
-    })
-
-    // Show detailed error message with actionable steps
-    const shortfall = count - eligible.length
-    const actionMessage =
-      validEntries === 0
-        ? 'Please approve some entries in the Raffle Entries tab first.'
-        : `You need ${shortfall} more eligible entries. Users who have already won any prize are not eligible.`
-
-    showToast(
-      'warning',
-      'Cannot Draw Winners',
-      `Need ${count} winners but only ${eligible.length} eligible entries available. ${actionMessage}`,
-      0, // Manual dismiss for important warnings
-    )
-    return winners
-  }
-
-  // Create a copy to avoid modifying the original array
-  const availableEntries = [...eligible]
-
-  for (let i = 0; i < count; i++) {
-    const randomIndex = Math.floor(Math.random() * availableEntries.length)
-    const winner = availableEntries.splice(randomIndex, 1)[0]
-    console.log(`Drawing winner ${i + 1}: ${winner.fullName} (ID: ${winner.id})`)
-
-    winners.push(winner)
-  }
-
-  console.log(
-    'All drawn winners:',
-    winners.map((w) => `${w.fullName} (${w.id})`),
-  )
-
-  return winners
+  // For backward compatibility, use the new logic with an empty roundWinners set
+  return drawWinnersForRound(count, new Set())
 }
 
 // Helper function to clear used winner IDs (for debugging)
