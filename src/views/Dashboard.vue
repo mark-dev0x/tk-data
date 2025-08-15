@@ -3328,19 +3328,6 @@ onUnmounted(() => {
               <p class="mb-4 text-gray-600">
                 Generate winners for Grand Prizes and Consolation Prizes from verified entries
               </p>
-              <!-- Test delete button -->
-              <div v-if="showDeleteButton" class="flex justify-center mt-4">
-                <button
-                  @click="deleteAllWinners"
-                  class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Delete All Winners
-                </button>
-              </div>
-              <!-- Test delete button -->
             </div>
 
             <!-- Valid/Invalid Entries Display Section -->
