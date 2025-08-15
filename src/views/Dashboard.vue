@@ -1,4 +1,13 @@
 <script setup lang="ts">
+/**
+ * Tapa King Raffle Dashboard
+ *
+ * IMPORTANT RAFFLE RULES:
+ * - Each user can only win ONCE across all prizes (confirmed or rejected)
+ * - This ensures fair distribution and prevents multiple wins per user
+ * - Users with multiple raffle entries are still limited to one prize win
+ * - Confirmed and rejected winners are counted towards the "one win per user" rule
+ */
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -1310,6 +1319,8 @@ const refreshData = async () => {
 }
 
 // Prize drawing computed properties
+// IMPORTANT: Each user can only win ONCE across all prizes (confirmed or rejected)
+// This ensures fair distribution and prevents multiple wins per user
 const isAnyPrizeDrawn = computed(() => {
   return (
     grandPrizes.value.some((p) => p.winners.length > 0) ||
@@ -1342,9 +1353,7 @@ const displayedTotalConsolationWinners = computed(() => {
 // Prize drawing functions - using computed for better reactivity
 const eligibleEntries = computed(() => {
   const eligible = submissions.value.filter(
-    (submission) =>
-      submission.entryStatus === 'Valid' &&
-      (submission.raffleEntries || 1) > getConfirmedWinsCount(submission.id),
+    (submission) => submission.entryStatus === 'Valid' && !hasUserWonAnyPrize(submission.id), // User can only win once across all prizes
   )
 
   console.log('Total submissions:', submissions.value.length)
@@ -1352,7 +1361,7 @@ const eligibleEntries = computed(() => {
     'Valid submissions:',
     submissions.value.filter((s) => s.entryStatus === 'Valid').length,
   )
-  console.log('Eligible entries (with remaining entries after confirmed wins):', eligible.length)
+  console.log("Eligible entries (users who haven't won any prize yet):", eligible.length)
 
   return eligible
 })
@@ -1376,6 +1385,40 @@ const getConfirmedWinsCount = (submissionId: string) => {
   })
 
   return confirmedWins
+}
+
+// Helper function to check if user has already won ANY prize (confirmed or rejected)
+const hasUserWonAnyPrize = (submissionId: string) => {
+  // Check if user has won any grand prize
+  const hasWonGrandPrize = grandPrizes.value.some((prize) =>
+    prize.winners.some((winner) => winner.id === submissionId),
+  )
+
+  // Check if user has won any consolation prize
+  const hasWonConsolationPrize = consolationPrizes.value.some((prize) =>
+    prize.winners.some((winner) => winner.id === submissionId),
+  )
+
+  return hasWonGrandPrize || hasWonConsolationPrize
+}
+
+// Helper function to get count of unique users who have won any prize
+const getUniqueWinnersCount = () => {
+  const uniqueWinnerIds = new Set<string>()
+
+  grandPrizes.value.forEach((prize) => {
+    prize.winners.forEach((winner) => {
+      uniqueWinnerIds.add(winner.id)
+    })
+  })
+
+  consolationPrizes.value.forEach((prize) => {
+    prize.winners.forEach((winner) => {
+      uniqueWinnerIds.add(winner.id)
+    })
+  })
+
+  return uniqueWinnerIds.size
 }
 
 // Backward compatibility function
@@ -1410,10 +1453,12 @@ const drawRandomWinners = (count: number) => {
     // Get detailed breakdown for better debugging
     const totalEntries = submissions.value.length
     const validEntries = submissions.value.filter((s) => s.entryStatus === 'Valid').length
+    const usersWhoWonPrizes = submissions.value.filter((s) => hasUserWonAnyPrize(s.id)).length
 
     console.log('Entry breakdown:', {
       total: totalEntries,
       valid: validEntries,
+      usersWhoWonPrizes: usersWhoWonPrizes,
       eligible: eligible.length,
     })
 
@@ -1422,7 +1467,7 @@ const drawRandomWinners = (count: number) => {
     const actionMessage =
       validEntries === 0
         ? 'Please approve some entries in the Raffle Entries tab first.'
-        : `You need ${shortfall} more eligible entries. Users need more raffle entries than their confirmed wins to be eligible.`
+        : `You need ${shortfall} more eligible entries. Users who have already won any prize are not eligible.`
 
     showToast(
       'warning',
@@ -1805,6 +1850,7 @@ const drawGrandPrize = async (prizeIndex: number) => {
   const prize = grandPrizes.value[prizeIndex]
 
   // Don't draw if prize is complete or has pending winners that could fulfill requirement
+  // Note: Each user can only win once across all prizes (confirmed or rejected)
   if (
     isPrizeComplete(prize) ||
     (prize.winners.length >= prize.count &&
@@ -1896,6 +1942,7 @@ const drawConsolationPrize = async (prizeIndex: number) => {
   const prize = consolationPrizes.value[prizeIndex]
 
   // Don't draw if prize is complete or has pending winners that could fulfill requirement
+  // Note: Each user can only win once across all prizes (confirmed or rejected)
   if (
     isPrizeComplete(prize) ||
     (prize.winners.length >= prize.count &&
@@ -3391,7 +3438,19 @@ onUnmounted(() => {
                       <div class="flex items-center space-x-2">
                         <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                         <span class="font-medium text-gray-700"
-                          >{{ validEntriesList.length }} Participants Eligible</span
+                          >{{ eligibleEntries.length }} Unique Users Eligible</span
+                        >
+                      </div>
+                      <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span class="font-medium text-gray-700"
+                          >{{ validEntriesList.length }} Total Valid Entries</span
+                        >
+                      </div>
+                      <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        <span class="font-medium text-gray-700"
+                          >{{ getUniqueWinnersCount() }} Users Won Prizes</span
                         >
                       </div>
                     </div>
@@ -3467,7 +3526,7 @@ onUnmounted(() => {
                                     .length > 0
                                 ? `Pending Review (${getRemainingWinnersNeeded(prize)} more needed)`
                                 : eligibleEntries.length < getRemainingWinnersNeeded(prize)
-                                  ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} available)`
+                                  ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} unique users available)`
                                   : getConfirmedWinnersCount(prize.name, prize.winners) === 0
                                     ? `Draw ${prize.count} ${prize.count === 1 ? 'Winner' : 'Winners'}`
                                     : `Draw another ${getRemainingWinnersNeeded(prize)} ${getRemainingWinnersNeeded(prize) === 1 ? 'Winner' : 'Winners'}`
@@ -3672,7 +3731,7 @@ onUnmounted(() => {
                                     .length > 0
                                 ? `Pending Review (${getRemainingWinnersNeeded(prize)} more needed)`
                                 : eligibleEntries.length < getRemainingWinnersNeeded(prize)
-                                  ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} available)`
+                                  ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} unique users available)`
                                   : getConfirmedWinnersCount(prize.name, prize.winners) === 0
                                     ? `Draw ${prize.count} ${prize.count === 1 ? 'Winner' : 'Winners'}`
                                     : `Draw another ${getRemainingWinnersNeeded(prize)} ${getRemainingWinnersNeeded(prize) === 1 ? 'Winner' : 'Winners'}`
@@ -3832,7 +3891,13 @@ onUnmounted(() => {
 
             <!-- Winner Summary -->
             <div v-if="isAnyPrizeDrawn" class="p-6 mt-8 rounded-lg bg-gray-50">
-              <h3 class="mb-4 text-lg font-bold text-gray-900">Winner Summary</h3>
+              <div class="mb-4">
+                <h3 class="text-lg font-bold text-gray-900">Winner Summary</h3>
+                <p class="text-sm text-gray-600">
+                  Each user can only win once across all prizes. Confirmed and rejected winners are
+                  counted.
+                </p>
+              </div>
               <div class="grid gap-6 md:grid-cols-2">
                 <div v-if="consolationPrizes.some((p) => p.winners.length > 0)">
                   <h4 class="mb-2 font-semibold text-gray-800">
@@ -3927,7 +3992,7 @@ onUnmounted(() => {
               <h2 class="text-2xl font-bold text-gray-900">Insights & Analytics</h2>
               <!-- Layout toggle (Desktop only) -->
               <button
-                class="hidden md:inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-full border border-gray-300 bg-white shadow-sm hover:shadow transition-all hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="hidden lg:inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-full border border-gray-300 bg-white shadow-sm hover:shadow transition-all hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 :title="chartsStacked ? 'Switch to Grid layout' : 'Switch to Stacked layout'"
                 @click="chartsStacked = !chartsStacked"
               >
