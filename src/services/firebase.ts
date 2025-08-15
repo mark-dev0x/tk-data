@@ -170,7 +170,7 @@ export async function logActivity(
       return
     }
 
-    const activityLogRef = collection(db, 'activity-log')
+    const activityLogRef = collection(db, 'activity_log')
     await addDoc(activityLogRef, {
       ...activity,
       timestamp: serverTimestamp(),
@@ -201,7 +201,7 @@ export async function getActivityLogs(): Promise<ActivityLog[]> {
       throw new Error('No internet connection available')
     }
 
-    const activityLogRef = collection(db, 'activity-log')
+    const activityLogRef = collection(db, 'activity_log')
     const q = query(activityLogRef, orderBy('timestamp', 'desc'))
     const querySnapshot = await getDocs(q)
 
@@ -238,7 +238,7 @@ export async function getActivityLogs(): Promise<ActivityLog[]> {
       }
       if (error.message.includes('permission-denied')) {
         throw new Error(
-          'Access denied. Please check Firestore security rules for activity-log collection.',
+          'Access denied. Please check Firestore security rules for activity_log collection.',
         )
       }
     }
