@@ -9,7 +9,8 @@
  * - Confirmed and rejected winners are counted towards the "one win per user" rule
  */
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { deleteWinnersForPrize } from '../services/firebase'
 import {
   db,
   auth,
@@ -48,6 +49,84 @@ const getInitialTab = (): TabType => {
 }
 
 const activeTab = ref<TabType>(getInitialTab())
+
+// ------------------  Test button  --------------
+const route = useRoute()
+
+// Show delete button only if ?delete=1 is present in the query
+const showDeleteButton = computed(() => {
+  return route.query.delete === '1'
+})
+
+// Delete winners for a specific prize (by reference and type)
+interface Prize {
+  name: string;
+  count: number;
+  winners: Submission[];
+}
+const deletePrizeWinners = async (prize: Prize) => {
+  if (!prize.winners || prize.winners.length === 0) return
+  try {
+    await deleteWinnersForPrize(prize.name)
+    prize.winners = []
+    // Remove winnerStatus, drawTime, rejectionReasons for this prize only
+    Object.keys(winnerStatus.value).forEach((key) => {
+      if (key.startsWith(prize.name + '::')) delete winnerStatus.value[key]
+    })
+    Object.keys(drawTime.value).forEach((key) => {
+      if (key.startsWith(prize.name + '::')) delete drawTime.value[key]
+    })
+    Object.keys(rejectionReasons.value).forEach((key) => {
+      if (key.startsWith(prize.name + '::')) delete rejectionReasons.value[key]
+    })
+    showToast('warning', 'Winners Deleted', `All winners for "${prize.name}" have been cleared from the database.`)
+  } catch (err) {
+    showToast('error', 'Delete Failed', `Failed to delete winners for "${prize.name}": ${(err as Error)?.message || String(err)}`)
+  }
+}
+
+// Delete all winners for all prizes (grand and consolation)
+const deleteAllWinners = async () => {
+  try {
+    // Delete grand prizes
+    for (const prize of grandPrizes.value) {
+      if (prize.winners && prize.winners.length > 0) {
+        await deleteWinnersForPrize(prize.name)
+        prize.winners = []
+        Object.keys(winnerStatus.value).forEach((key) => {
+          if (key.startsWith(prize.name + '::')) delete winnerStatus.value[key]
+        })
+        Object.keys(drawTime.value).forEach((key) => {
+          if (key.startsWith(prize.name + '::')) delete drawTime.value[key]
+        })
+        Object.keys(rejectionReasons.value).forEach((key) => {
+          if (key.startsWith(prize.name + '::')) delete rejectionReasons.value[key]
+        })
+      }
+    }
+    // Delete consolation prizes
+    for (const prize of consolationPrizes.value) {
+      if (prize.winners && prize.winners.length > 0) {
+        await deleteWinnersForPrize(prize.name)
+        prize.winners = []
+        Object.keys(winnerStatus.value).forEach((key) => {
+          if (key.startsWith(prize.name + '::')) delete winnerStatus.value[key]
+        })
+        Object.keys(drawTime.value).forEach((key) => {
+          if (key.startsWith(prize.name + '::')) delete drawTime.value[key]
+        })
+        Object.keys(rejectionReasons.value).forEach((key) => {
+          if (key.startsWith(prize.name + '::')) delete rejectionReasons.value[key]
+        })
+      }
+    }
+    showToast('warning', 'All Winners Deleted', 'All winners for all prizes have been cleared from the database.')
+  } catch (err) {
+    showToast('error', 'Delete Failed', `Failed to delete all winners: ${(err as Error)?.message || String(err)}`)
+  }
+}
+// ------------------  Test button  --------------
+
 const submissions = ref<Submission[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -3249,6 +3328,19 @@ onUnmounted(() => {
               <p class="mb-4 text-gray-600">
                 Generate winners for Grand Prizes and Consolation Prizes from verified entries
               </p>
+              <!-- Test delete button -->
+              <div v-if="showDeleteButton" class="flex justify-center mt-4">
+                <button
+                  @click="deleteAllWinners"
+                  class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Delete All Winners
+                </button>
+              </div>
+              <!-- Test delete button -->
             </div>
 
             <!-- Valid/Invalid Entries Display Section -->
@@ -3485,49 +3577,59 @@ onUnmounted(() => {
                         </div>
                         <p class="text-sm text-gray-600">{{ prize.count }} Winners</p>
                       </div>
-                      <button
-                        @click="drawConsolationPrize(index)"
-                        :disabled="
-                          isPrizeComplete(prize) ||
-                          (prize.winners.length >= prize.count &&
-                            prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length >
-                              0) ||
-                          stats.validEntries === 0 ||
-                          drawingWinners.has(prize.name) ||
-                          eligibleEntries.length < getRemainingWinnersNeeded(prize)
-                        "
-                        class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 disabled:from-gray-400 disabled:to-gray-500"
-                      >
-                        <svg
-                          v-if="drawingWinners.has(prize.name)"
-                          class="w-4 h-4 animate-spin"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                      <div class="flex items-center gap-2">
+                        <button
+                          @click="drawConsolationPrize(index)"
+                          :disabled="
+                            isPrizeComplete(prize) ||
+                            (prize.winners.length >= prize.count &&
+                              prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length > 0) ||
+                            stats.validEntries === 0 ||
+                            drawingWinners.has(prize.name) ||
+                            eligibleEntries.length < getRemainingWinnersNeeded(prize)
+                          "
+                          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 disabled:from-gray-400 disabled:to-gray-500"
                         >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                          />
-                        </svg>
-                        {{
-                          drawingWinners.has(prize.name)
-                            ? 'Drawing...'
-                            : isPrizeComplete(prize)
-                              ? 'Complete'
-                              : prize.winners.length >= prize.count &&
-                                  prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id))
-                                    .length > 0
-                                ? `Pending Review (${getRemainingWinnersNeeded(prize)} more needed)`
-                                : eligibleEntries.length < getRemainingWinnersNeeded(prize)
-                                  ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} unique users available)`
-                                  : getConfirmedWinnersCount(prize.name, prize.winners) === 0
-                                    ? `Draw ${prize.count} ${prize.count === 1 ? 'Winner' : 'Winners'}`
-                                    : `Draw another ${getRemainingWinnersNeeded(prize)} ${getRemainingWinnersNeeded(prize) === 1 ? 'Winner' : 'Winners'}`
-                        }}
-                      </button>
+                          <svg
+                            v-if="drawingWinners.has(prize.name)"
+                            class="w-4 h-4 animate-spin"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                          </svg>
+                          {{
+                            drawingWinners.has(prize.name)
+                              ? 'Drawing...'
+                              : isPrizeComplete(prize)
+                                ? 'Complete'
+                                : prize.winners.length >= prize.count &&
+                                    prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length > 0
+                                  ? `Pending Review (${getRemainingWinnersNeeded(prize)} more needed)`
+                                  : eligibleEntries.length < getRemainingWinnersNeeded(prize)
+                                    ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} unique users available)`
+                                    : getConfirmedWinnersCount(prize.name, prize.winners) === 0
+                                      ? `Draw ${prize.count} ${prize.count === 1 ? 'Winner' : 'Winners'}`
+                                      : `Draw another ${getRemainingWinnersNeeded(prize)} ${getRemainingWinnersNeeded(prize) === 1 ? 'Winner' : 'Winners'}`
+                          }}
+                        </button>
+                        <button
+                          v-if="showDeleteButton && prize.winners && prize.winners.length > 0"
+                          @click="deletePrizeWinners(prize)"
+                          class="flex items-center gap-1 px-3 py-2 text-xs font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          Delete
+                        </button>
+                      </div>
                     </div>
 
                     <div
@@ -3690,49 +3792,59 @@ onUnmounted(() => {
                           {{ prize.count }} {{ prize.count === 1 ? 'Winner' : 'Winners' }}
                         </p>
                       </div>
-                      <button
-                        @click="drawGrandPrize(index)"
-                        :disabled="
-                          isPrizeComplete(prize) ||
-                          (prize.winners.length >= prize.count &&
-                            prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length >
-                              0) ||
-                          stats.validEntries === 0 ||
-                          drawingWinners.has(prize.name) ||
-                          eligibleEntries.length < getRemainingWinnersNeeded(prize)
-                        "
-                        class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-400 disabled:to-gray-500"
-                      >
-                        <svg
-                          v-if="drawingWinners.has(prize.name)"
-                          class="w-4 h-4 animate-spin"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                      <div class="flex items-center gap-2">
+                        <button
+                          @click="drawGrandPrize(index)"
+                          :disabled="
+                            isPrizeComplete(prize) ||
+                            (prize.winners.length >= prize.count &&
+                              prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length > 0) ||
+                            stats.validEntries === 0 ||
+                            drawingWinners.has(prize.name) ||
+                            eligibleEntries.length < getRemainingWinnersNeeded(prize)
+                          "
+                          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-400 disabled:to-gray-500"
                         >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                          />
-                        </svg>
-                        {{
-                          drawingWinners.has(prize.name)
-                            ? 'Drawing...'
-                            : isPrizeComplete(prize)
-                              ? 'Complete'
-                              : prize.winners.length >= prize.count &&
-                                  prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id))
-                                    .length > 0
-                                ? `Pending Review (${getRemainingWinnersNeeded(prize)} more needed)`
-                                : eligibleEntries.length < getRemainingWinnersNeeded(prize)
-                                  ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} unique users available)`
-                                  : getConfirmedWinnersCount(prize.name, prize.winners) === 0
-                                    ? `Draw ${prize.count} ${prize.count === 1 ? 'Winner' : 'Winners'}`
-                                    : `Draw another ${getRemainingWinnersNeeded(prize)} ${getRemainingWinnersNeeded(prize) === 1 ? 'Winner' : 'Winners'}`
-                        }}
-                      </button>
+                          <svg
+                            v-if="drawingWinners.has(prize.name)"
+                            class="w-4 h-4 animate-spin"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                          </svg>
+                          {{
+                            drawingWinners.has(prize.name)
+                              ? 'Drawing...'
+                              : isPrizeComplete(prize)
+                                ? 'Complete'
+                                : prize.winners.length >= prize.count &&
+                                    prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length > 0
+                                  ? `Pending Review (${getRemainingWinnersNeeded(prize)} more needed)`
+                                  : eligibleEntries.length < getRemainingWinnersNeeded(prize)
+                                    ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} unique users available)`
+                                    : getConfirmedWinnersCount(prize.name, prize.winners) === 0
+                                      ? `Draw ${prize.count} ${prize.count === 1 ? 'Winner' : 'Winners'}`
+                                      : `Draw another ${getRemainingWinnersNeeded(prize)} ${getRemainingWinnersNeeded(prize) === 1 ? 'Winner' : 'Winners'}`
+                          }}
+                        </button>
+                        <button
+                          v-if="showDeleteButton && prize.winners && prize.winners.length > 0"
+                          @click="deletePrizeWinners(prize)"
+                          class="flex items-center gap-1 px-3 py-2 text-xs font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          Delete
+                        </button>
+                      </div>
                     </div>
 
                     <div

@@ -6,8 +6,6 @@ import {
   getDocs,
   query,
   orderBy,
-  doc,
-  updateDoc,
   addDoc,
   deleteDoc,
   serverTimestamp,
@@ -419,4 +417,18 @@ export async function loadAllWinners(): Promise<Record<string, Winner[]>> {
   }
 
   return allWinners
+}
+
+// Test function to delete all winners for a specific prize
+/**
+ * Delete all winners for a specific prize from Firestore
+ * @param prizeName The name of the prize (must match prizeCollectionMap)
+ */
+export async function deleteWinnersForPrize(prizeName: string): Promise<void> {
+  const collectionName = prizeCollectionMap[prizeName]
+  if (!collectionName) throw new Error(`Unknown prize: ${prizeName}`)
+  const winnersRef = collection(db, collectionName)
+  const existingSnapshot = await getDocs(query(winnersRef))
+  const deletePromises = existingSnapshot.docs.map((docSnap) => deleteDoc(docSnap.ref))
+  await Promise.all(deletePromises)
 }
