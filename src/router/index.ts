@@ -1,8 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import { auth } from '../services/firebase'
-import Login from '../views/LoginPage.vue'
-import Dashboard from '../views/DashboardPage.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -10,12 +8,12 @@ const router = createRouter({
     {
       path: '/',
       name: 'login',
-      component: Login,
+      component: () => import('../views/LoginPage.vue'),
     },
     {
       path: '/dashboard',
       name: 'dashboard',
-      component: Dashboard,
+      component: () => import('../views/DashboardPage.vue'),
       meta: { requiresAuth: true },
     },
   ],

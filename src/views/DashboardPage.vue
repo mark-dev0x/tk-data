@@ -456,7 +456,9 @@
 
               <!-- Date Range with Modern Date Picker -->
               <div>
-                <label class="block mb-3 text-sm font-semibold text-gray-900">Date Range</label>
+                <label class="block mb-3 text-sm font-semibold text-gray-900"
+                  >Date Range (Start - End)</label
+                >
                 <div class="relative">
                   <!-- Calendar icon on left -->
                   <div
@@ -485,9 +487,10 @@
                     :enable-time-picker="false"
                     auto-apply
                     :clearable="false"
-                    placeholder="Select date"
-                    format="MM/dd/yyyy - MM/dd/yyyy"
-                    input-class="w-full px-4 py-3 pl-10 text-gray-900 transition-all duration-200 border border-gray-300 appearance-none cursor-pointer bg-gray-50 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white"
+                    placeholder="Start Date - End Date"
+                    format="MM/dd/yyyy"
+                    :range-separator="' to '"
+                    :input-class="'truncate w-full px-4 py-3 pl-10 text-gray-900 transition-all duration-200 border border-gray-300 appearance-none cursor-pointer bg-gray-50 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white'"
                     class="w-full"
                   />
 
@@ -724,11 +727,7 @@
                         d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h10"
                       />
                     </svg>
-                    {{
-                      selectedBranch.length > 20
-                        ? selectedBranch.substring(0, 20) + '...'
-                        : selectedBranch
-                    }}
+                    {{ selectedBranch }}
                   </div>
 
                   <!-- Date Filter Badge -->
@@ -745,13 +744,9 @@
                       />
                     </svg>
                     {{
-                      (() => {
-                        const dateText =
-                          formatDateForDisplay(startDate) +
-                          (startDate && endDate ? ' to ' : '') +
-                          formatDateForDisplay(endDate)
-                        return dateText.length > 20 ? dateText.substring(0, 20) + '...' : dateText
-                      })()
+                      formatDateForDisplay(startDate) +
+                      (startDate && endDate ? ' to ' : '') +
+                      formatDateForDisplay(endDate)
                     }}
                   </div>
 
@@ -2100,7 +2095,11 @@
                       filteredSubmissions.length > 0 &&
                       branchAnalysisData &&
                       branchAnalysisData.labels &&
-                      branchAnalysisData.labels.length > 0
+                      branchAnalysisData.labels.length > 0 &&
+                      branchAnalysisData.datasets &&
+                      branchAnalysisData.datasets[0] &&
+                      branchAnalysisData.datasets[0].data &&
+                      branchAnalysisData.datasets[0].data.length > 0
                     "
                     :data="branchAnalysisData"
                     :height="260"
@@ -2144,7 +2143,13 @@
                           d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                         />
                       </svg>
-                      <p>Loading chart data...</p>
+                      <p>
+                        {{
+                          filteredSubmissions.length === 0
+                            ? 'No data available'
+                            : 'Loading chart data...'
+                        }}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -2165,7 +2170,11 @@
                       filteredSubmissions.length > 0 &&
                       branchRevenueData &&
                       branchRevenueData.labels &&
-                      branchRevenueData.labels.length > 0
+                      branchRevenueData.labels.length > 0 &&
+                      branchRevenueData.datasets &&
+                      branchRevenueData.datasets[0] &&
+                      branchRevenueData.datasets[0].data &&
+                      branchRevenueData.datasets[0].data.length > 0
                     "
                     :data="branchRevenueData"
                     :height="260"
@@ -2233,8 +2242,11 @@
                     v-if="
                       filteredSubmissions.length > 0 &&
                       ageDistributionData &&
+                      ageDistributionData.labels &&
+                      ageDistributionData.labels.length > 0 &&
                       ageDistributionData.datasets &&
                       ageDistributionData.datasets[0] &&
+                      ageDistributionData.datasets[0].data &&
                       ageDistributionData.datasets[0].data.length > 0
                     "
                     :data="ageDistributionData"
@@ -2335,7 +2347,13 @@
                           d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
                         />
                       </svg>
-                      <p>Loading chart data...</p>
+                      <p>
+                        {{
+                          filteredSubmissions.length === 0
+                            ? 'No data available'
+                            : 'Loading chart data...'
+                        }}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -2351,7 +2369,11 @@
                       filteredSubmissions.length > 0 &&
                       entriesPerDayData &&
                       entriesPerDayData.labels &&
-                      entriesPerDayData.labels.length > 0
+                      entriesPerDayData.labels.length > 0 &&
+                      entriesPerDayData.datasets &&
+                      entriesPerDayData.datasets[0] &&
+                      entriesPerDayData.datasets[0].data &&
+                      entriesPerDayData.datasets[0].data.length > 0
                     "
                     :data="entriesPerDayData"
                     :height="260"
@@ -3658,10 +3680,15 @@ import {
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore'
-import PieChart from '../components/PieChart.vue'
-import BarChart from '../components/BarChart.vue'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
+
+// Dynamic imports for chart components
+// Temporarily use static imports to test if the issue is with async loading
+import PieChart from '../components/PieChart.vue'
+import BarChart from '../components/BarChart.vue'
+// const PieChart = defineAsyncComponent(() => import('../components/PieChart.vue'))
+// const BarChart = defineAsyncComponent(() => import('../components/BarChart.vue'))
 
 type TabType = 'raffle-entries' | 'pick-winners' | 'insights'
 
@@ -3723,48 +3750,6 @@ const deletePrizeWinners = async (prize: Prize) => {
     deletingWinners.value.delete(prize.name)
   }
 }
-
-// Delete all winners for all prizes (grand and consolation) - UNUSED FUNCTION
-// const deleteAllWinners = async () => {
-//   try {
-//     // Delete grand prizes
-//     for (const prize of grandPrizes.value) {
-//       if (prize.winners && prize.winners.length > 0) {
-//         await deleteWinnersForPrize(prize.name)
-//         prize.winners = []
-//         Object.keys(winnerStatus.value).forEach((key) => {
-//           if (key.startsWith(prize.name + '::')) delete winnerStatus.value[key]
-//         })
-//         Object.keys(drawTime.value).forEach((key) => {
-//           if (key.startsWith(prize.name + '::')) delete drawTime.value[key]
-//         })
-//         Object.keys(rejectionReasons.value).forEach((key) => {
-//           if (key.startsWith(prize.name + '::')) delete rejectionReasons.value[key]
-//         })
-//       }
-//     }
-//     // Delete consolation prizes
-//     for (const prize of consolationPrizes.value) {
-//       if (prize.winners && prize.winners.length > 0) {
-//         await deleteWinnersForPrize(prize.name)
-//         prize.winners = []
-//         Object.keys(winnerStatus.value).forEach((key) => {
-//           if (key.startsWith(prize.name + '::')) delete winnerStatus.value[key]
-//         })
-//         Object.keys(drawTime.value).forEach((key) => {
-//           if (key.startsWith(prize.name + '::')) delete drawTime.value[key]
-//         })
-//         Object.keys(rejectionReasons.value).forEach((key) => {
-//           if (key.startsWith(prize.name + '::')) delete rejectionReasons.value[key]
-//         })
-//       }
-//     }
-//     showToast('warning', 'All Winners Deleted', 'All winners for all prizes have been cleared from the database.')
-//   } catch (err) {
-//     showToast('error', 'Delete Failed', `Failed to delete all winners: ${(err as Error)?.message || String(err)}`)
-//     }
-// }
-// ------------------  Test button  --------------
 
 const submissions = ref<Submission[]>([])
 const loading = ref(true)
@@ -4231,12 +4216,16 @@ const resetPagination = () => {
   sortDirection.value = 'asc'
 }
 
-// Format date from YYYY-MM-DD to MM-DD-YYYY for display
+// Format date from YYYY-MM-DD to MM/DD/YYYY for display
 const formatDateForDisplay = (dateStr: string): string => {
   if (!dateStr) return ''
   try {
-    const [year, month, day] = dateStr.split('-')
-    return `${month}-${day}-${year}`
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+    })
   } catch {
     return dateStr
   }
