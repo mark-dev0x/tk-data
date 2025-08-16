@@ -21,7 +21,7 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
-// Validate required fields (silently)
+// Validate required fields
 if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
   throw new Error('Firebase configuration is incomplete - check environment variables')
 }
@@ -31,9 +31,8 @@ const app = initializeApp(firebaseConfig)
 export const db = getFirestore(app)
 export const auth = getAuth(app)
 
-// Silent initialization check
+// Initialize Firebase connection
 try {
-  // Validate Firebase connection without logging sensitive info
   if (!firebaseConfig.projectId) {
     throw new Error('Project ID not configured')
   }
@@ -100,7 +99,7 @@ export async function getSubmissions(): Promise<Submission[]> {
       submissions.push({
         id: doc.id, // Use Firebase document ID for consistency
         raffleEntries: data.raffleEntries,
-        entryStatus: data.entryStatus || 'Pending',
+        entryStatus: data.entryStatus,
         fullName: data.fullName,
         mobileNumber: data.mobileNumber,
         email: data.email,

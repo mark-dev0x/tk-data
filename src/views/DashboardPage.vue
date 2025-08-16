@@ -1224,19 +1224,19 @@ const isFirebaseTimestamp = (value: unknown): value is { toDate: () => Date } =>
   return value !== null && 
          typeof value === 'object' && 
          'toDate' in value && 
-         typeof (value as any).toDate === 'function'
+         typeof (value as { toDate?: unknown }).toDate === 'function'
 }
 
 const formatValue = (value: unknown, key: string): string => {
   if (value === null || value === undefined) return '-'
 
   if (key === 'submittedAt' && value) {
-    try {
-      const date = isFirebaseTimestamp(value) ? value.toDate() : new Date(value as string | number | Date)
-      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
-    } catch {
-      return String(value)
-    }
+        try {
+          const date = isFirebaseTimestamp(value) ? value.toDate() : new Date(value as string | number | Date)
+          return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+        } catch {
+          return String(value)
+        }
   }
 
   if (key === 'purchaseAmount' && typeof value === 'number') {
@@ -1862,7 +1862,7 @@ const updateWinnerStatusInDatabase = async (
 
     // Update each matching document (should be only one)
     const updatePromises = querySnapshot.docs.map((docSnapshot) => {
-          const updateData: any = {
+          const updateData: { status: string; verifiedAt: unknown; rejectionReason?: string } = {
       status: status,
       verifiedAt: serverTimestamp(),
     }
@@ -2208,18 +2208,18 @@ onUnmounted(() => {
       <div
         class="flex pl-3 w-full sm:pl-6 items-center pr-3 justify-between mx-auto sm:pr-6 max-w-[3200px]"
       >
-        <!-- Brand Logo -->
-        <div class="flex items-center">
-          <img
-            src="/imgs/tk-white.webp"
-            alt="Tapa King logo"
-            class="object-cover w-full h-10 rounded-lg sm:h-12"
-          />
-        </div>
+              <!-- Brand Logo -->
+              <div class="flex items-center">
+                <img
+                  src="/imgs/tk-white.webp"
+                  alt="Tapa King logo"
+                  class="object-cover w-full h-10 rounded-lg sm:h-12"
+                />
+              </div>
 
-        <div class="flex items-center space-x-3">
-          <!-- Activity Log Button -->
-          <button
+              <div class="flex items-center space-x-3">
+                <!-- Activity Log Button -->
+                <button
             @click="toggleActivityLogModal"
             class="flex items-center px-3 py-2 space-x-2 text-white transition-colors duration-200 rounded-lg hover:text-gray-200 hover:bg-red-700"
             title="View Activity Logs"
