@@ -101,6 +101,7 @@
 </template>
 
 <script setup lang="ts">
+// Component name: UserLogin
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { signInWithEmailAndPassword, type AuthError } from 'firebase/auth'

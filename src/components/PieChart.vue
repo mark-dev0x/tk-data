@@ -71,9 +71,6 @@ const defaultOptions: ChartOptions<'pie'> = {
 }
 
 const createChart = () => {
-  // console.log('Creating pie chart with ID:', props.chartId)
-  // console.log('Pie chart data:', props.data)
-
   const canvas = document.getElementById(props.chartId) as HTMLCanvasElement
   if (!canvas) {
     console.error('Canvas element not found:', props.chartId)
@@ -92,7 +89,6 @@ const createChart = () => {
       data: props.data,
       options: { ...defaultOptions, ...props.options },
     })
-    // console.log('Pie chart created successfully:', chart)
   } catch (error) {
     console.error('Error creating pie chart:', error)
   }

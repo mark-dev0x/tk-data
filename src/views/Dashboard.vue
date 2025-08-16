@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// Component name: AdminDashboard
 /**
  * Tapa King Raffle Dashboard
  *
@@ -196,12 +197,7 @@ const rejectionReasons = ref<Record<string, string>>({}) // Store rejection reas
 // Winner key helpers (per prize-entry tracking)
 const makeWinnerKey = (prizeName: string, winnerId: string) => `${prizeName}::${winnerId}`
 const getWinnerStatus = (prizeName: string, winnerId: string) => {
-  const status = winnerStatus.value[makeWinnerKey(prizeName, winnerId)]
-  // Debug logging for status retrieval
-  if (import.meta.env.DEV) {
-    console.log(`Getting status for ${prizeName}::${winnerId}: ${status}`)
-  }
-  return status
+  return winnerStatus.value[makeWinnerKey(prizeName, winnerId)]
 }
 const getRejectionReason = (prizeName: string, winnerId: string) =>
   rejectionReasons.value[makeWinnerKey(prizeName, winnerId)]
@@ -448,9 +444,9 @@ const filteredSubmissions = computed(() => {
     // Date filter
     if (startDate.value || endDate.value) {
       try {
-        const submissionDate = submission.submittedAt?.toDate
+        const submissionDate = isFirebaseTimestamp(submission.submittedAt)
           ? submission.submittedAt.toDate()
-          : new Date(submission.submittedAt)
+          : new Date(submission.submittedAt as string | number | Date)
 
         const submissionDateOnly = new Date(
           submissionDate.getFullYear(),
@@ -686,8 +682,7 @@ const exportData = () => {
       link.click()
       document.body.removeChild(link)
 
-      // Show success message
-      console.log(`Exported ${dataToExport.length} entries to ${filename}.csv`)
+      // Export completed successfully
     }
   } catch (error) {
     console.error('Export failed:', error)
@@ -829,10 +824,8 @@ const toggleEntryStatus = async (submission: Submission) => {
       submissions.value[submissionIndex].entryStatus = newStatus
     }
 
-    console.log(`Updated submission ${submission.id} status to ${newStatus}`)
-
-    // Force Vue reactivity update
-    await nextTick()
+          // Force Vue reactivity update
+      await nextTick()
 
     // Show success notification for status change
     if (newStatus === 'Valid') {
@@ -1092,9 +1085,9 @@ const entriesPerDayData = computed(() => {
   const dayData = filteredSubmissions.value.reduce((acc: Record<string, number>, submission) => {
     if (submission.submittedAt) {
       try {
-        const date = submission.submittedAt.toDate
+        const date = isFirebaseTimestamp(submission.submittedAt)
           ? submission.submittedAt.toDate()
-          : new Date(submission.submittedAt)
+          : new Date(submission.submittedAt as string | number | Date)
         const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
         if (!acc[dayKey]) {
@@ -1218,7 +1211,6 @@ const handleLogout = async () => {
   try {
     // Add delay to show the logout overlay (minimum 1.5 seconds)
     await Promise.all([signOut(auth), new Promise((resolve) => setTimeout(resolve, 1500))])
-    console.log('User signed out')
     router.push('/')
   } catch (error) {
     console.error('Error signing out:', error)
@@ -1227,12 +1219,20 @@ const handleLogout = async () => {
   }
 }
 
+// Helper function to check if value is a Firebase timestamp
+const isFirebaseTimestamp = (value: unknown): value is { toDate: () => Date } => {
+  return value !== null && 
+         typeof value === 'object' && 
+         'toDate' in value && 
+         typeof (value as any).toDate === 'function'
+}
+
 const formatValue = (value: unknown, key: string): string => {
   if (value === null || value === undefined) return '-'
 
   if (key === 'submittedAt' && value) {
     try {
-      const date = (value as any).toDate ? (value as any).toDate() : new Date(value as string | number | Date)
+      const date = isFirebaseTimestamp(value) ? value.toDate() : new Date(value as string | number | Date)
       return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
     } catch {
       return String(value)
@@ -1257,7 +1257,6 @@ const maxRetries = 3
 const loadExistingWinners = async () => {
   winnersLoading.value = true
   try {
-    console.log('Loading existing winners from Firebase...')
     const allWinners = await loadAllWinners()
 
     // Map Firebase winners back to the local prize structure
@@ -1285,31 +1284,28 @@ const loadExistingWinners = async () => {
           }
         })
 
-        // Restore draw times and winner status for existing winners
-        winners.forEach((winner) => {
-          const key = makeWinnerKey(prizeName, winner.submissionId)
-          
-          // Restore draw time
-          if (winner.drawnAt) {
-            const drawTimeStr = winner.drawnAt.toDate
-              ? winner.drawnAt.toDate().toLocaleString()
-              : new Date(winner.drawnAt).toLocaleString()
-            drawTime.value[key] = drawTimeStr
-          }
+                  // Restore draw times and winner status for existing winners
+          winners.forEach((winner) => {
+            const key = makeWinnerKey(prizeName, winner.submissionId)
+            
+            // Restore draw time
+            if (winner.drawnAt) {
+              const drawTimeStr = isFirebaseTimestamp(winner.drawnAt)
+                ? winner.drawnAt.toDate().toLocaleString()
+                : new Date(winner.drawnAt as string | number | Date).toLocaleString()
+              drawTime.value[key] = drawTimeStr
+            }
 
-          // Restore winner status per prize-entry - CRITICAL FIX
+          // Restore winner status per prize-entry
           if (winner.status && (winner.status === 'confirmed' || winner.status === 'rejected')) {
             winnerStatus.value[key] = winner.status
-            console.log(`Restored status for ${prizeName}::${winner.submissionId}: ${winner.status}`)
-          } else {
-            // If no status or status is undefined, set to pending (this should not happen for existing winners)
+          } else if (import.meta.env.DEV) {
             console.warn(`Winner ${prizeName}::${winner.submissionId} has no valid status: ${winner.status}`)
           }
 
           // Restore rejection reason if it exists
           if (winner.status === 'rejected' && winner.rejectionReason) {
             rejectionReasons.value[key] = winner.rejectionReason
-            console.log(`Restored rejection reason for ${prizeName}::${winner.submissionId}: ${winner.rejectionReason}`)
           }
         })
 
@@ -1324,17 +1320,12 @@ const loadExistingWinners = async () => {
           }
         }
 
-        console.log(`Loaded ${winners.length} existing winners for ${prizeName}`)
+        // Winners loaded successfully
       }
     }
 
     // Force a reactivity update after all winners are loaded
     await nextTick()
-    
-    console.log('Successfully loaded all existing winners')
-    console.log('Winner status state:', winnerStatus.value)
-    console.log('Draw times state:', drawTime.value)
-    console.log('Rejection reasons state:', rejectionReasons.value)
   } catch (error) {
     console.error('Failed to load existing winners:', error)
     // Don't fail the app if winners can't be loaded, just log it
@@ -1346,7 +1337,6 @@ const loadExistingWinners = async () => {
 // Function to manually refresh winner status from database
 const refreshWinnerStatus = async () => {
   try {
-    console.log('Manually refreshing winner status from database...')
     await loadExistingWinners()
     showToast('success', 'Winner Status Refreshed', 'Winner status has been refreshed from the database.')
   } catch (error) {
@@ -1606,10 +1596,8 @@ watch(
 // Watch for changes in winner status to ensure UI updates
 watch(
   winnerStatus,
-  (newStatus, oldStatus) => {
-    if (import.meta.env.DEV) {
-      console.log('Winner status changed:', { oldStatus, newStatus })
-    }
+  () => {
+    // UI will automatically update when winner status changes
   },
   { deep: true, immediate: false },
 )
@@ -1674,15 +1662,12 @@ const confirmWinner = async () => {
 
     // Update winner status in Firebase
     try {
-      console.log(
-        `Updating winner status to confirmed for ${selectedWinner.value.fullName} (ID: ${selectedWinner.value.id}) in prize ${selectedPrizeName.value}`,
-      )
-      await updateWinnerStatusInDatabase(
-        selectedWinner.value.id,
-        selectedPrizeName.value,
-        'confirmed',
-      )
-      console.log(`✅ Winner ${selectedWinner.value.fullName} confirmed and updated in database`)
+          await updateWinnerStatusInDatabase(
+      selectedWinner.value.id,
+      selectedPrizeName.value,
+      'confirmed',
+    )
+    // Winner confirmed successfully
       // Reflect local state only after successful DB update
       winnerStatus.value[key] = 'confirmed'
       drawTime.value[key] = new Date().toLocaleString()
@@ -1710,9 +1695,9 @@ const confirmWinner = async () => {
       currentAdmin.value || undefined,
     ).catch((err) => console.warn('Activity logging failed:', err))
 
-    console.log(`Winner ${selectedWinner.value.fullName} confirmed for ${selectedPrizeName.value}`)
+          // Winner confirmed successfully
 
-    // Show success notification
+      // Show success notification
     showToast(
       'success',
       'Winner Confirmed',
@@ -1757,22 +1742,17 @@ const confirmRejectWinner = async () => {
     const prizeName = selectedPrizeName.value
     const reason = rejectionReason.value.trim()
 
-    console.log(`Starting rejection process for ${selectedWinner.value.fullName}`)
-
     const key = makeWinnerKey(prizeName, rejectedWinnerId)
 
     // Update winner status in Firebase
     try {
-      console.log(
-        `Updating winner status to rejected for ${selectedWinner.value.fullName} (ID: ${rejectedWinnerId}) in prize ${prizeName}`,
-      )
       await updateWinnerStatusInDatabase(rejectedWinnerId, prizeName, 'rejected', reason)
-      console.log(`✅ Winner ${selectedWinner.value.fullName} rejected and updated in database`)
+      // Winner rejected successfully
       // Reflect local state only after successful DB update
       winnerStatus.value[key] = 'rejected'
       rejectionReasons.value[key] = reason
     } catch (error) {
-      console.error('❌ Failed to update winner status in database:', error)
+      console.error('Failed to update winner status in database:', error)
       alert(
         `Warning: Failed to save rejection to database. Status is saved locally but may not persist on refresh. Error: ${error}`,
       )
@@ -1796,9 +1776,7 @@ const confirmRejectWinner = async () => {
       currentAdmin.value || undefined,
     ).catch((err) => console.warn('Activity logging failed:', err))
 
-    console.log(
-      `Winner ${selectedWinner.value.fullName} rejected for ${prizeName}. Reason: ${reason}`,
-    )
+    // Winner rejected successfully
 
     // Show success notification
     showToast(
@@ -1807,8 +1785,6 @@ const confirmRejectWinner = async () => {
       `${selectedWinner.value.fullName} has been rejected for ${prizeName}. They are now eligible for other prizes.`,
       5000,
     )
-
-    console.log('Rejection process completed, closing modals')
 
     // Close both modals
     closeRejectReasonModal()
@@ -2038,7 +2014,7 @@ const drawGrandPrize = async (prizeIndex: number) => {
         currentAdmin.value || undefined,
       ).catch((err) => console.warn('Activity logging failed:', err))
 
-      console.log(`Drawn ${winnersNeeded} winner(s) for ${prize.name}:`, winners)
+      // Winners drawn successfully
 
       // Show success notification for grand prize
       showToast(
@@ -2130,7 +2106,7 @@ const drawConsolationPrize = async (prizeIndex: number) => {
         currentAdmin.value || undefined,
       ).catch((err) => console.warn('Activity logging failed:', err))
 
-      console.log(`Drawn ${winnersNeeded} winner(s) for ${prize.name}:`, winners)
+      // Winners drawn successfully
 
       // Show success notification for consolation prize
       showToast(
@@ -2171,7 +2147,7 @@ onMounted(async () => {
         email: user.email || 'Unknown',
         name: user.displayName || undefined,
       }
-      console.log('Current admin:', currentAdmin.value)
+      // Admin authenticated
     } else {
       currentAdmin.value = null
     }
@@ -2183,13 +2159,10 @@ onMounted(async () => {
   // Load existing winners after submissions are loaded
   await loadExistingWinners()
   
-  // Verify winner status was loaded correctly
-  if (import.meta.env.DEV) {
-    console.log('=== INITIAL LOAD VERIFICATION ===')
-    console.log('Winner Status after load:', winnerStatus.value)
-    console.log('Draw Times after load:', drawTime.value)
-    console.log('Rejection Reasons after load:', rejectionReasons.value)
-  }
+      // Verify winner status was loaded correctly (development only)
+    if (import.meta.env.DEV) {
+      console.log('Initial load verification completed')
+    }
 
   // Add debug functions to window for testing (development only)
 if (import.meta.env.DEV) {
@@ -2203,12 +2176,13 @@ if (import.meta.env.DEV) {
     showToast('info', 'Debug', 'Forced reactivity update')
   }
   ;(window as unknown as Record<string, unknown>).checkWinnerStatus = () => {
-    console.log('=== WINNER STATUS DEBUG ===')
-    console.log('Winner Status State:', winnerStatus.value)
-    console.log('Draw Times State:', drawTime.value)
-    console.log('Rejection Reasons State:', rejectionReasons.value)
-    console.log('Grand Prizes Winners:', grandPrizes.value.map(p => ({ name: p.name, winners: p.winners.length })))
-    console.log('Consolation Prizes Winners:', consolationPrizes.value.map(p => ({ name: p.name, winners: p.winners.length })))
+    console.log('Winner Status Debug:', {
+      status: winnerStatus.value,
+      drawTimes: drawTime.value,
+      rejectionReasons: rejectionReasons.value,
+      grandPrizes: grandPrizes.value.map(p => ({ name: p.name, winners: p.winners.length })),
+      consolationPrizes: consolationPrizes.value.map(p => ({ name: p.name, winners: p.winners.length }))
+    })
     showToast('info', 'Debug', 'Winner status logged to console')
   }
   ;(window as unknown as Record<string, unknown>).reloadWinners = async () => {
@@ -5347,9 +5321,9 @@ onUnmounted(() => {
                         >
                           <span class="font-medium">Drew:</span>
                           {{
-                            log.timestamp.toDate
+                            isFirebaseTimestamp(log.timestamp)
                               ? log.timestamp.toDate().toLocaleDateString()
-                              : new Date(log.timestamp).toLocaleDateString()
+                              : new Date(log.timestamp as string | number | Date).toLocaleDateString()
                           }}
                         </div>
                         <!-- Enhanced timestamp for Winner Rejection on mobile -->
@@ -5359,9 +5333,9 @@ onUnmounted(() => {
                         >
                           <span class="font-medium">Rejected:</span>
                           {{
-                            log.timestamp.toDate
+                            isFirebaseTimestamp(log.timestamp)
                               ? log.timestamp.toDate().toLocaleDateString()
-                              : new Date(log.timestamp).toLocaleDateString()
+                              : new Date(log.timestamp as string | number | Date).toLocaleDateString()
                           }}
                         </div>
                         <!-- Enhanced timestamp for Winner Confirmation on mobile -->
@@ -5371,17 +5345,17 @@ onUnmounted(() => {
                         >
                           <span class="font-medium">Confirmed:</span>
                           {{
-                            log.timestamp.toDate
+                            isFirebaseTimestamp(log.timestamp)
                               ? log.timestamp.toDate().toLocaleDateString()
-                              : new Date(log.timestamp).toLocaleDateString()
+                              : new Date(log.timestamp as string | number | Date).toLocaleDateString()
                           }}
                         </div>
                         <!-- Regular timestamp for other actions -->
                         <div v-else>
                           {{
-                            log.timestamp.toDate
+                            isFirebaseTimestamp(log.timestamp)
                               ? log.timestamp.toDate().toLocaleDateString()
-                              : new Date(log.timestamp).toLocaleDateString()
+                              : new Date(log.timestamp as string | number | Date).toLocaleDateString()
                           }}
                         </div>
                       </div>
@@ -5389,17 +5363,17 @@ onUnmounted(() => {
                   </div>
                   <div class="mb-2 text-sm text-gray-800">
                     <!-- Enhanced display for Winner Draw actions -->
-                    <div v-if="log.action === 'WINNER_DRAW' && log.details?.winners">
+                    <div v-if="log.action === 'WINNER_DRAW' && (log.details as any)?.winners">
                       <div class="mb-2 font-semibold text-purple-900">{{ log.description }}</div>
                       <div class="p-3 border border-purple-200 rounded-lg bg-purple-50">
                         <div
                           class="mb-2 text-xs font-medium tracking-wide text-purple-800 uppercase"
                         >
-                          {{ log.details.winners.length === 1 ? 'Winner' : 'Winners' }} Selected:
+                          {{ (log.details as any).winners.length === 1 ? 'Winner' : 'Winners' }} Selected:
                         </div>
                         <div class="space-y-2">
                           <div
-                            v-for="(winner, index) in log.details.winners"
+                            v-for="(winner, index) in (log.details as any).winners"
                             :key="winner.id"
                             class="flex items-center justify-between p-2 bg-white border border-purple-100 rounded"
                           >
@@ -5436,10 +5410,10 @@ onUnmounted(() => {
                         <div class="p-2 mb-3 bg-white border border-red-100 rounded">
                           <div class="font-semibold text-gray-900">{{ log.targetName }}</div>
                           <div v-if="log.details" class="text-xs text-gray-600">
-                            {{ log.details.email }} • {{ log.details.mobileNumber }}
+                            {{ (log.details as any).email }} • {{ (log.details as any).mobileNumber }}
                           </div>
                           <div class="text-xs font-medium text-red-600">
-                            Prize: {{ log.details?.prizeName }}
+                            Prize: {{ (log.details as any)?.prizeName }}
                           </div>
                         </div>
                         <!-- Display rejection reason from details or extract from description -->
@@ -5453,7 +5427,7 @@ onUnmounted(() => {
                             class="p-2 text-sm font-medium text-red-900 bg-white border border-red-300 rounded"
                           >
                             {{
-                              log.details?.rejectionReason ||
+                              (log.details as any)?.rejectionReason ||
                               (log.description.includes('. Reason:')
                                 ? log.description.split('. Reason:')[1]
                                 : 'No reason provided')
@@ -5474,10 +5448,10 @@ onUnmounted(() => {
                         <div class="p-2 bg-white border border-green-100 rounded">
                           <div class="font-semibold text-gray-900">{{ log.targetName }}</div>
                           <div v-if="log.details" class="text-xs text-gray-600">
-                            {{ log.details.email }} • {{ log.details.mobileNumber }}
+                            {{ (log.details as any).email }} • {{ (log.details as any).mobileNumber }}
                           </div>
                           <div class="text-xs font-medium text-green-600">
-                            Prize: {{ log.details?.prizeName }}
+                            Prize: {{ (log.details as any)?.prizeName }}
                           </div>
                         </div>
                       </div>
@@ -5517,9 +5491,9 @@ onUnmounted(() => {
                       <div class="text-xs font-medium tracking-wide uppercase">Drew Time</div>
                       <div class="font-semibold">
                         {{
-                          log.timestamp.toDate
+                          isFirebaseTimestamp(log.timestamp)
                             ? log.timestamp.toDate().toLocaleString()
-                            : new Date(log.timestamp).toLocaleString()
+                            : new Date(log.timestamp as string | number | Date).toLocaleString()
                         }}
                       </div>
                     </div>
@@ -5531,9 +5505,9 @@ onUnmounted(() => {
                       <div class="text-xs font-medium tracking-wide uppercase">Rejected</div>
                       <div class="font-semibold">
                         {{
-                          log.timestamp.toDate
+                          isFirebaseTimestamp(log.timestamp)
                             ? log.timestamp.toDate().toLocaleString()
-                            : new Date(log.timestamp).toLocaleString()
+                            : new Date(log.timestamp as string | number | Date).toLocaleString()
                         }}
                       </div>
                     </div>
@@ -5545,18 +5519,18 @@ onUnmounted(() => {
                       <div class="text-xs font-medium tracking-wide uppercase">Confirmed</div>
                       <div class="font-semibold">
                         {{
-                          log.timestamp.toDate
+                          isFirebaseTimestamp(log.timestamp)
                             ? log.timestamp.toDate().toLocaleString()
-                            : new Date(log.timestamp).toLocaleString()
+                            : new Date(log.timestamp as string | number | Date).toLocaleString()
                         }}
                       </div>
                     </div>
                     <!-- Regular timestamp for other actions -->
                     <div v-else>
                       {{
-                        log.timestamp.toDate
+                        isFirebaseTimestamp(log.timestamp)
                           ? log.timestamp.toDate().toLocaleString()
-                          : new Date(log.timestamp).toLocaleString()
+                          : new Date(log.timestamp as string | number | Date).toLocaleString()
                       }}
                     </div>
                   </div>

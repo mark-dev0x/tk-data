@@ -56,7 +56,7 @@ export interface Submission {
   purchaseAmount?: number
   receiptNumber?: string
   receiptUpload?: string[]
-  submittedAt?: any
+  submittedAt?: unknown
 }
 
 export interface ActivityLog {
@@ -67,8 +67,8 @@ export interface ActivityLog {
   targetName?: string
   oldValue?: string
   newValue?: string
-  timestamp: any
-  details?: any
+  timestamp: unknown
+  details?: unknown
   adminId?: string
   adminEmail?: string
   adminName?: string
@@ -86,15 +86,8 @@ export async function getSubmissions(): Promise<Submission[]> {
   })
 
   try {
-    // Test basic Firebase connectivity with a simple operation first
-    console.log('Testing Firebase connection...')
     const submissionsRef = collection(db, 'raffle-entries-test-123')
-
-    // Try without orderBy first to see if it's a permissions issue
-    console.log('Getting documents...')
     const querySnapshot = await Promise.race([getDocs(submissionsRef), timeoutPromise])
-
-    console.log(`Found ${querySnapshot.size} documents`)
 
     if (querySnapshot.size === 0) {
       console.warn('No documents found in submissions collection')
@@ -104,7 +97,6 @@ export async function getSubmissions(): Promise<Submission[]> {
     const submissions: Submission[] = []
     querySnapshot.forEach((doc) => {
       const data = doc.data()
-      console.log(`Document:`, doc.id, data)
       submissions.push({
         id: doc.id, // Use Firebase document ID for consistency
         raffleEntries: data.raffleEntries,
@@ -123,15 +115,14 @@ export async function getSubmissions(): Promise<Submission[]> {
       })
     })
 
-    console.log('Successfully processed submissions:', submissions.length)
     return submissions
   } catch (error) {
     console.error('Firebase error details:', {
       error,
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      code: (error as any)?.code,
-      customData: (error as any)?.customData,
+      code: (error as { code?: string })?.code,
+      customData: (error as { customData?: unknown })?.customData,
       networkState: navigator.onLine ? 'online' : 'offline',
       userAgent: navigator.userAgent,
     })
@@ -253,9 +244,9 @@ export interface Winner {
   email: string
   mobileNumber: string
   raffleEntries: number
-  drawnAt: any
+  drawnAt: unknown
   status?: 'confirmed' | 'rejected'
-  verifiedAt?: any
+  verifiedAt?: unknown
   rejectionReason?: string
 }
 
@@ -287,7 +278,6 @@ export async function saveWinners(prizeName: string, winners: Submission[]): Pro
     const winnersRef = collection(db, collectionName)
 
     // First, clear all existing winners for this prize
-    console.log(`Clearing existing winners for ${prizeName}...`)
     const existingQuery = query(winnersRef)
     const existingSnapshot = await getDocs(existingQuery)
 
@@ -295,10 +285,7 @@ export async function saveWinners(prizeName: string, winners: Submission[]): Pro
     const deletePromises = existingSnapshot.docs.map((docSnap) => deleteDoc(docSnap.ref))
     await Promise.all(deletePromises)
 
-    console.log(`Cleared ${existingSnapshot.size} existing winners for ${prizeName}`)
-
     // Now save the new winners
-    console.log(`Saving ${winners.length} new winners for ${prizeName}...`)
     for (const winner of winners) {
       const winnerData: Omit<Winner, 'id'> = {
         submissionId: winner.id,
@@ -312,10 +299,6 @@ export async function saveWinners(prizeName: string, winners: Submission[]): Pro
 
       await addDoc(winnersRef, winnerData)
     }
-
-    console.log(
-      `Successfully saved ${winners.length} winners for ${prizeName} to collection ${collectionName}`,
-    )
   } catch (error) {
     console.error(`Failed to save winners for ${prizeName}:`, error)
     throw error
@@ -355,19 +338,15 @@ export async function loadWinners(prizeName: string): Promise<Winner[]> {
       })
     })
 
-    console.log(
-      `Loaded ${winners.length} winners for ${prizeName} from collection ${collectionName}`,
-    )
     return winners
   } catch (error) {
     console.error(`Failed to load winners for ${prizeName}:`, error)
 
     // If collection doesn't exist or no winners found, return empty array
     if (
-      (error as any)?.code === 'permission-denied' ||
-      (error as any)?.message?.includes('not found')
+      (error as { code?: string })?.code === 'permission-denied' ||
+      (error as { message?: string })?.message?.includes('not found')
     ) {
-      console.log(`No winners found for ${prizeName}, returning empty array`)
       return []
     }
 
@@ -393,10 +372,6 @@ export async function clearWinners(prizeName: string): Promise<void> {
     // Delete all documents in the collection
     const deletePromises = querySnapshot.docs.map((docSnap) => deleteDoc(docSnap.ref))
     await Promise.all(deletePromises)
-
-    console.log(
-      `Cleared ${querySnapshot.size} winners for ${prizeName} from collection ${collectionName}`,
-    )
   } catch (error) {
     console.error(`Failed to clear winners for ${prizeName}:`, error)
     throw error

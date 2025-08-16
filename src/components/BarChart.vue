@@ -73,9 +73,6 @@ const defaultOptions: ChartOptions<'bar'> = {
 }
 
 const createChart = () => {
-  // console.log('Creating bar chart with ID:', props.chartId)
-  // console.log('Chart data:', props.data)
-
   const canvas = document.getElementById(props.chartId) as HTMLCanvasElement
   if (!canvas) {
     console.error('Canvas element not found:', props.chartId)
@@ -94,7 +91,6 @@ const createChart = () => {
       data: props.data,
       options: { ...defaultOptions, ...props.options },
     })
-    // console.log('Bar chart created successfully:', chart)
   } catch (error) {
     console.error('Error creating bar chart:', error)
   }

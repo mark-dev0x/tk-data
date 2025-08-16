@@ -31,12 +31,10 @@ router.beforeEach((to, _from, next) => {
         next()
       } else {
         // User is not authenticated, redirect to login
-        console.log('Access denied: User not authenticated, redirecting to login')
         next('/')
       }
     } else if (to.name === 'login' && user) {
       // User is authenticated but trying to access login page, redirect to dashboard
-      console.log('User already authenticated, redirecting to dashboard')
       next('/dashboard')
     } else {
       // Route doesn't require auth or user is not authenticated, allow access
