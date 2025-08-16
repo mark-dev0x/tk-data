@@ -1874,85 +1874,86 @@
                   Each user can only win once across all prizes. Confirmed and rejected winners are
                   counted.
                 </p>
-              </div>
-              <div class="grid gap-6 md:grid-cols-2">
-                <div v-if="consolationPrizes.some((p) => p.winners.length > 0)">
-                  <h4 class="mb-2 font-semibold text-gray-800">
-                    Consolation Prize Winners ({{ displayedTotalConsolationWinners }})
-                  </h4>
-                  <div class="space-y-3">
-                    <div
-                      v-for="prize in consolationPrizes.filter(
-                        (p) => p.winners.length > 0 && !drawingWinners.has(p.name),
-                      )"
-                      :key="prize.name"
-                      class="text-sm"
-                    >
-                      <span class="font-medium text-blue-700">{{ prize.name }}:</span>
-                      <div class="flex flex-wrap gap-1 mt-1">
-                        <button
-                          v-for="winner in getSortedWinners(prize.name, prize.winners)"
-                          :key="winner.id"
-                          @click="openWinnerModal(winner, prize.name)"
-                          :class="[
-                            'inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-sm transition-all duration-200 hover:shadow-sm',
-                            getWinnerStatus(prize.name, winner.id) === 'confirmed'
-                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                              : getWinnerStatus(prize.name, winner.id) === 'rejected'
-                                ? 'bg-red-100 text-red-800 hover:bg-red-200'
-                                : 'bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer',
-                          ]"
-                        >
-                          <span
-                            v-if="getWinnerStatusIcon(prize.name, winner.id)"
-                            class="text-sm font-bold"
-                            >{{ getWinnerStatusIcon(prize.name, winner.id) }}</span
+
+                <div class="grid gap-6 md:grid-cols-2">
+                  <div v-if="consolationPrizes.some((p) => p.winners.length > 0)">
+                    <h4 class="mb-2 font-semibold text-gray-800">
+                      Consolation Prize Winners ({{ displayedTotalConsolationWinners }})
+                    </h4>
+                    <div class="space-y-3">
+                      <div
+                        v-for="prize in consolationPrizes.filter(
+                          (p) => p.winners.length > 0 && !drawingWinners.has(p.name),
+                        )"
+                        :key="prize.name"
+                        class="text-sm"
+                      >
+                        <span class="font-medium text-blue-700">{{ prize.name }}:</span>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                          <button
+                            v-for="winner in getSortedWinners(prize.name, prize.winners)"
+                            :key="winner.id"
+                            @click="openWinnerModal(winner, prize.name)"
+                            :class="[
+                              'inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-sm transition-all duration-200 hover:shadow-sm',
+                              getWinnerStatus(prize.name, winner.id) === 'confirmed'
+                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                : getWinnerStatus(prize.name, winner.id) === 'rejected'
+                                  ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                                  : 'bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer',
+                            ]"
                           >
-                          <span class="text-sm font-semibold">
-                            {{ winner.fullName }}
-                          </span>
-                        </button>
+                            <span
+                              v-if="getWinnerStatusIcon(prize.name, winner.id)"
+                              class="text-sm font-bold"
+                              >{{ getWinnerStatusIcon(prize.name, winner.id) }}</span
+                            >
+                            <span class="text-sm font-semibold">
+                              {{ winner.fullName }}
+                            </span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div v-if="grandPrizes.some((p) => p.winners.length > 0)">
-                  <h4 class="mb-2 font-semibold text-gray-800">
-                    Grand Prize Winners ({{ displayedTotalGrandWinners }})
-                  </h4>
-                  <div class="space-y-3">
-                    <div
-                      v-for="prize in grandPrizes.filter(
-                        (p) => p.winners.length > 0 && !drawingWinners.has(p.name),
-                      )"
-                      :key="prize.name"
-                      class="text-sm"
-                    >
-                      <span class="font-medium text-yellow-700">{{ prize.name }}:</span>
-                      <div class="flex flex-wrap gap-1 mt-1">
-                        <button
-                          v-for="winner in getSortedWinners(prize.name, prize.winners)"
-                          :key="winner.id"
-                          @click="openWinnerModal(winner, prize.name)"
-                          :class="[
-                            'inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-sm transition-all duration-200 hover:shadow-sm',
-                            getWinnerStatus(prize.name, winner.id) === 'confirmed'
-                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                              : getWinnerStatus(prize.name, winner.id) === 'rejected'
-                                ? 'bg-red-100 text-red-800 hover:bg-red-200'
-                                : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 cursor-pointer',
-                          ]"
-                        >
-                          <span
-                            v-if="getWinnerStatusIcon(prize.name, winner.id)"
-                            class="text-sm font-bold"
-                            >{{ getWinnerStatusIcon(prize.name, winner.id) }}</span
+                  <div v-if="grandPrizes.some((p) => p.winners.length > 0)">
+                    <h4 class="mb-2 font-semibold text-gray-800">
+                      Grand Prize Winners ({{ displayedTotalGrandWinners }})
+                    </h4>
+                    <div class="space-y-3">
+                      <div
+                        v-for="prize in grandPrizes.filter(
+                          (p) => p.winners.length > 0 && !drawingWinners.has(p.name),
+                        )"
+                        :key="prize.name"
+                        class="text-sm"
+                      >
+                        <span class="font-medium text-yellow-700">{{ prize.name }}:</span>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                          <button
+                            v-for="winner in getSortedWinners(prize.name, prize.winners)"
+                            :key="winner.id"
+                            @click="openWinnerModal(winner, prize.name)"
+                            :class="[
+                              'inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-sm transition-all duration-200 hover:shadow-sm',
+                              getWinnerStatus(prize.name, winner.id) === 'confirmed'
+                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                : getWinnerStatus(prize.name, winner.id) === 'rejected'
+                                  ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                                  : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 cursor-pointer',
+                            ]"
                           >
-                          <span class="text-sm font-semibold">
-                            {{ winner.fullName }}
-                          </span>
-                        </button>
+                            <span
+                              v-if="getWinnerStatusIcon(prize.name, winner.id)"
+                              class="text-sm font-bold"
+                              >{{ getWinnerStatusIcon(prize.name, winner.id) }}</span
+                            >
+                            <span class="text-sm font-semibold">
+                              {{ winner.fullName }}
+                            </span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -3820,7 +3821,15 @@ const rejectionReasons = ref<Record<string, string>>({}) // Store rejection reas
 // Winner key helpers (per prize-entry tracking)
 const makeWinnerKey = (prizeName: string, winnerId: string) => `${prizeName}::${winnerId}`
 const getWinnerStatus = (prizeName: string, winnerId: string) => {
-  return winnerStatus.value[makeWinnerKey(prizeName, winnerId)]
+  const key = makeWinnerKey(prizeName, winnerId)
+  const status = winnerStatus.value[key]
+
+  // Debug logging in development
+  if (import.meta.env.DEV && status) {
+    console.log(`Winner status for ${prizeName}::${winnerId}: ${status}`)
+  }
+
+  return status
 }
 const getRejectionReason = (prizeName: string, winnerId: string) =>
   rejectionReasons.value[makeWinnerKey(prizeName, winnerId)]
@@ -4979,6 +4988,18 @@ const loadExistingWinners = async () => {
 
     // Force a reactivity update after all winners are loaded
     await nextTick()
+
+    // Force reactivity update for winner status objects to ensure UI updates
+    winnerStatus.value = { ...winnerStatus.value }
+    drawTime.value = { ...drawTime.value }
+    rejectionReasons.value = { ...rejectionReasons.value }
+
+    // Force reactivity update for prize arrays
+    grandPrizes.value = [...grandPrizes.value]
+    consolationPrizes.value = [...consolationPrizes.value]
+
+    // Force another tick to ensure all updates are processed
+    await nextTick()
   } catch (error) {
     console.error('Failed to load existing winners:', error)
     // Don't fail the app if winners can't be loaded, just log it
@@ -5070,15 +5091,6 @@ const isAnyPrizeDrawn = computed(() => {
     consolationPrizes.value.some((p) => p.winners.length > 0)
   )
 })
-
-// Deprecated in favor of displayedTotal* which hides active drawings
-// const totalGrandWinners = computed(() => {
-//   return grandPrizes.value.reduce((sum, prize) => sum + prize.winners.length, 0)
-// })
-
-// const totalConsolationWinners = computed(() => {
-//   return consolationPrizes.value.reduce((sum, prize) => sum + prize.winners.length, 0)
-// })
 
 // Visible counts for Winner Summary (hide winners for prizes still drawing)
 const displayedTotalGrandWinners = computed(() => {
@@ -5237,8 +5249,17 @@ watch(
 // Watch for changes in winner status to ensure UI updates
 watch(
   winnerStatus,
-  () => {
+  (newStatus, oldStatus) => {
     // UI will automatically update when winner status changes
+    if (import.meta.env.DEV) {
+      console.log('Winner status changed:', { old: oldStatus, new: newStatus })
+    }
+
+    // Force reactivity update for prize arrays to ensure UI updates
+    nextTick(() => {
+      grandPrizes.value = [...grandPrizes.value]
+      consolationPrizes.value = [...consolationPrizes.value]
+    })
   },
   { deep: true, immediate: false },
 )
