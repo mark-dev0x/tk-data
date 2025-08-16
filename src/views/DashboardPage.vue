@@ -3693,17 +3693,6 @@ import BarChart from '../components/BarChart.vue'
 
 type TabType = 'raffle-entries' | 'pick-winners' | 'insights'
 
-// Initialize activeTab from localStorage or default to 'raffle-entries'
-const getInitialTab = (): TabType => {
-  const savedTab = localStorage.getItem('tk-active-tab')
-  if (savedTab && ['raffle-entries', 'pick-winners', 'insights'].includes(savedTab)) {
-    return savedTab as TabType
-  }
-  return 'raffle-entries'
-}
-
-const activeTab = ref<TabType>(getInitialTab())
-
 // ------------------  Test button  --------------
 const route = useRoute()
 
@@ -3995,6 +3984,20 @@ interface Toast {
   message: string
   duration?: number
 }
+
+// Initialize activeTab from localStorage or default to 'raffle-entries'
+const getInitialTab = (): TabType => {
+  const savedTab = localStorage.getItem('tk-active-tab')
+  if (savedTab === 'pick-winners') {
+    winnersLoading.value = true
+  }
+  if (savedTab && ['raffle-entries', 'pick-winners', 'insights'].includes(savedTab)) {
+    return savedTab as TabType
+  }
+  return 'raffle-entries'
+}
+
+const activeTab = ref<TabType>(getInitialTab())
 
 const toasts = ref<Toast[]>([])
 
