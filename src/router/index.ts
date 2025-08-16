@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { onAuthStateChanged } from 'firebase/auth'
+import { onAuthStateChanged, type User } from 'firebase/auth'
 import { auth } from '../services/firebase'
 import Login from '../views/Login.vue'
 import Dashboard from '../views/Dashboard.vue'
@@ -22,8 +22,8 @@ const router = createRouter({
 })
 
 // Authentication guard
-router.beforeEach((to, from, next) => {
-  const checkAuthAndNavigate = (user: any) => {
+router.beforeEach((to, _from, next) => {
+  const checkAuthAndNavigate = (user: User | null) => {
     if (to.meta.requiresAuth) {
       // Route requires authentication
       if (user) {

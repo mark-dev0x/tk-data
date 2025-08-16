@@ -103,7 +103,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, type AuthError } from 'firebase/auth'
 import { auth } from '../services/firebase'
 
 const router = useRouter()
@@ -125,11 +125,12 @@ const handleLogin = async () => {
     await signInWithEmailAndPassword(auth, email.value, password.value)
     // Redirect to dashboard on successful login
     router.push('/dashboard')
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Login failed:', err)
 
     // Handle specific Firebase auth errors
-    switch (err.code) {
+    const authError = err as AuthError
+    switch (authError.code) {
       case 'auth/user-not-found':
         error.value = 'No account found with this email address'
         break

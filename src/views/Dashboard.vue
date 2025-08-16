@@ -64,6 +64,7 @@ interface Prize {
   count: number;
   winners: Submission[];
 }
+
 const deletePrizeWinners = async (prize: Prize) => {
   if (!prize.winners || prize.winners.length === 0) return
   try {
@@ -85,46 +86,46 @@ const deletePrizeWinners = async (prize: Prize) => {
   }
 }
 
-// Delete all winners for all prizes (grand and consolation)
-const deleteAllWinners = async () => {
-  try {
-    // Delete grand prizes
-    for (const prize of grandPrizes.value) {
-      if (prize.winners && prize.winners.length > 0) {
-        await deleteWinnersForPrize(prize.name)
-        prize.winners = []
-        Object.keys(winnerStatus.value).forEach((key) => {
-          if (key.startsWith(prize.name + '::')) delete winnerStatus.value[key]
-        })
-        Object.keys(drawTime.value).forEach((key) => {
-          if (key.startsWith(prize.name + '::')) delete drawTime.value[key]
-        })
-        Object.keys(rejectionReasons.value).forEach((key) => {
-          if (key.startsWith(prize.name + '::')) delete rejectionReasons.value[key]
-        })
-      }
-    }
-    // Delete consolation prizes
-    for (const prize of consolationPrizes.value) {
-      if (prize.winners && prize.winners.length > 0) {
-        await deleteWinnersForPrize(prize.name)
-        prize.winners = []
-        Object.keys(winnerStatus.value).forEach((key) => {
-          if (key.startsWith(prize.name + '::')) delete winnerStatus.value[key]
-        })
-        Object.keys(drawTime.value).forEach((key) => {
-          if (key.startsWith(prize.name + '::')) delete drawTime.value[key]
-        })
-        Object.keys(rejectionReasons.value).forEach((key) => {
-          if (key.startsWith(prize.name + '::')) delete rejectionReasons.value[key]
-        })
-      }
-    }
-    showToast('warning', 'All Winners Deleted', 'All winners for all prizes have been cleared from the database.')
-  } catch (err) {
-    showToast('error', 'Delete Failed', `Failed to delete all winners: ${(err as Error)?.message || String(err)}`)
-  }
-}
+// Delete all winners for all prizes (grand and consolation) - UNUSED FUNCTION
+// const deleteAllWinners = async () => {
+//   try {
+//     // Delete grand prizes
+//     for (const prize of grandPrizes.value) {
+//       if (prize.winners && prize.winners.length > 0) {
+//         await deleteWinnersForPrize(prize.name)
+//         prize.winners = []
+//         Object.keys(winnerStatus.value).forEach((key) => {
+//           if (key.startsWith(prize.name + '::')) delete winnerStatus.value[key]
+//         })
+//         Object.keys(drawTime.value).forEach((key) => {
+//           if (key.startsWith(prize.name + '::')) delete drawTime.value[key]
+//         })
+//         Object.keys(rejectionReasons.value).forEach((key) => {
+//           if (key.startsWith(prize.name + '::')) delete rejectionReasons.value[key]
+//         })
+//       }
+//     }
+//     // Delete consolation prizes
+//     for (const prize of consolationPrizes.value) {
+//       if (prize.winners && prize.winners.length > 0) {
+//         await deleteWinnersForPrize(prize.name)
+//         prize.winners = []
+//         Object.keys(winnerStatus.value).forEach((key) => {
+//           if (key.startsWith(prize.name + '::')) delete winnerStatus.value[key]
+//         })
+//         Object.keys(drawTime.value).forEach((key) => {
+//           if (key.startsWith(prize.name + '::')) delete drawTime.value[key]
+//         })
+//         Object.keys(rejectionReasons.value).forEach((key) => {
+//           if (key.startsWith(prize.name + '::')) delete rejectionReasons.value[key]
+//         })
+//       }
+//     }
+//     showToast('warning', 'All Winners Deleted', 'All winners for all prizes have been cleared from the database.')
+//   } catch (err) {
+//     showToast('error', 'Delete Failed', `Failed to delete all winners: ${(err as Error)?.message || String(err)}`)
+//     }
+// }
 // ------------------  Test button  --------------
 
 const submissions = ref<Submission[]>([])
@@ -194,8 +195,14 @@ const rejectionReasons = ref<Record<string, string>>({}) // Store rejection reas
 
 // Winner key helpers (per prize-entry tracking)
 const makeWinnerKey = (prizeName: string, winnerId: string) => `${prizeName}::${winnerId}`
-const getWinnerStatus = (prizeName: string, winnerId: string) =>
-  winnerStatus.value[makeWinnerKey(prizeName, winnerId)]
+const getWinnerStatus = (prizeName: string, winnerId: string) => {
+  const status = winnerStatus.value[makeWinnerKey(prizeName, winnerId)]
+  // Debug logging for status retrieval
+  if (import.meta.env.DEV) {
+    console.log(`Getting status for ${prizeName}::${winnerId}: ${status}`)
+  }
+  return status
+}
 const getRejectionReason = (prizeName: string, winnerId: string) =>
   rejectionReasons.value[makeWinnerKey(prizeName, winnerId)]
 const getDrawTime = (prizeName: string, winnerId: string) =>
@@ -460,7 +467,7 @@ const filteredSubmissions = computed(() => {
           const filterEndDate = new Date(endDate.value)
           if (submissionDateOnly > filterEndDate) return false
         }
-      } catch (e) {
+      } catch {
         // If date parsing fails, include the submission
         console.warn('Date parsing failed for submission:', submission.id)
       }
@@ -596,7 +603,7 @@ const formatDateForDisplay = (dateStr: string): string => {
   try {
     const [year, month, day] = dateStr.split('-')
     return `${month}-${day}-${year}`
-  } catch (e) {
+  } catch {
     return dateStr
   }
 }
@@ -843,10 +850,10 @@ const toggleEntryStatus = async (submission: Submission) => {
         3000,
       )
     }
-  } catch (error) {
-    console.error('Failed to update submission status:', error)
-    showToast('error', 'Update Failed', 'Failed to update entry status. Please try again.', 5000)
-  } finally {
+        } catch {
+        console.error('Failed to update submission status')
+        showToast('error', 'Update Failed', 'Failed to update entry status. Please try again.', 5000)
+      } finally {
     // Remove from updating set
     statusUpdating.value.delete(submission.id)
   }
@@ -891,7 +898,7 @@ const ageDistributionData = computed(() => {
         } else {
           ageRanges['Invalid']++
         }
-      } catch (error) {
+      } catch {
         ageRanges['Unknown']++
       }
     } else {
@@ -945,7 +952,7 @@ const ageDistributionData = computed(() => {
       },
     ],
   }
-  console.log('Age Distribution Data:', data)
+      // console.log('Age Distribution Data:', data)
   return data
 })
 
@@ -1014,9 +1021,9 @@ const branchAnalysisData = computed(() => {
     ],
   }
 
-  console.log('Branch Analysis Data:', data)
-  console.log('Branch Counts:', branchCounts)
-  console.log('Submissions:', submissions.value.length)
+  // console.log('Branch Analysis Data:', data)
+  // console.log('Branch Counts:', branchCounts)
+  // console.log('Submissions:', submissions.value.length)
   return data
 })
 
@@ -1077,7 +1084,7 @@ const branchRevenueData = computed(() => {
     ],
   }
 
-  console.log('Branch Revenue Data:', data)
+  // console.log('Branch Revenue Data:', data)
   return data
 })
 
@@ -1095,7 +1102,7 @@ const entriesPerDayData = computed(() => {
         }
 
         acc[dayKey] += submission.raffleEntries || 1
-      } catch (e) {
+      } catch {
         // Handle invalid dates
         console.warn('Invalid date for submission:', submission.submittedAt)
       }
@@ -1220,15 +1227,15 @@ const handleLogout = async () => {
   }
 }
 
-const formatValue = (value: any, key: string): string => {
+const formatValue = (value: unknown, key: string): string => {
   if (value === null || value === undefined) return '-'
 
   if (key === 'submittedAt' && value) {
     try {
-      const date = value.toDate ? value.toDate() : new Date(value)
+      const date = (value as any).toDate ? (value as any).toDate() : new Date(value as string | number | Date)
       return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
     } catch {
-      return value.toString()
+      return String(value)
     }
   }
 
@@ -1240,7 +1247,7 @@ const formatValue = (value: any, key: string): string => {
     return 'View Receipt'
   }
 
-  return value.toString()
+  return String(value)
 }
 
 const retryCount = ref(0)
@@ -1281,6 +1288,8 @@ const loadExistingWinners = async () => {
         // Restore draw times and winner status for existing winners
         winners.forEach((winner) => {
           const key = makeWinnerKey(prizeName, winner.submissionId)
+          
+          // Restore draw time
           if (winner.drawnAt) {
             const drawTimeStr = winner.drawnAt.toDate
               ? winner.drawnAt.toDate().toLocaleString()
@@ -1288,14 +1297,19 @@ const loadExistingWinners = async () => {
             drawTime.value[key] = drawTimeStr
           }
 
-          // Restore winner status per prize-entry
-          if (winner.status) {
+          // Restore winner status per prize-entry - CRITICAL FIX
+          if (winner.status && (winner.status === 'confirmed' || winner.status === 'rejected')) {
             winnerStatus.value[key] = winner.status
+            console.log(`Restored status for ${prizeName}::${winner.submissionId}: ${winner.status}`)
+          } else {
+            // If no status or status is undefined, set to pending (this should not happen for existing winners)
+            console.warn(`Winner ${prizeName}::${winner.submissionId} has no valid status: ${winner.status}`)
           }
 
           // Restore rejection reason if it exists
           if (winner.status === 'rejected' && winner.rejectionReason) {
             rejectionReasons.value[key] = winner.rejectionReason
+            console.log(`Restored rejection reason for ${prizeName}::${winner.submissionId}: ${winner.rejectionReason}`)
           }
         })
 
@@ -1314,12 +1328,30 @@ const loadExistingWinners = async () => {
       }
     }
 
+    // Force a reactivity update after all winners are loaded
+    await nextTick()
+    
     console.log('Successfully loaded all existing winners')
+    console.log('Winner status state:', winnerStatus.value)
+    console.log('Draw times state:', drawTime.value)
+    console.log('Rejection reasons state:', rejectionReasons.value)
   } catch (error) {
     console.error('Failed to load existing winners:', error)
     // Don't fail the app if winners can't be loaded, just log it
   } finally {
     winnersLoading.value = false
+  }
+}
+
+// Function to manually refresh winner status from database
+const refreshWinnerStatus = async () => {
+  try {
+    console.log('Manually refreshing winner status from database...')
+    await loadExistingWinners()
+    showToast('success', 'Winner Status Refreshed', 'Winner status has been refreshed from the database.')
+  } catch (error) {
+    console.error('Failed to refresh winner status:', error)
+    showToast('error', 'Refresh Failed', 'Failed to refresh winner status from database.')
   }
 }
 
@@ -1351,7 +1383,7 @@ const loadSubmissions = async () => {
       } else {
         // All attempts exhausted
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-        const errorCode = (err as any)?.code
+        const errorCode = (err as { code?: string })?.code
 
         console.error('All retry attempts failed:', {
           error: err,
@@ -1436,36 +1468,36 @@ const eligibleEntries = computed(() => {
     (submission) => submission.entryStatus === 'Valid' && getUserEntriesLeft(submission.id) > 0,
   )
 
-  console.log('Total submissions:', submissions.value.length)
-  console.log(
-    'Valid submissions:',
-    submissions.value.filter((s) => s.entryStatus === 'Valid').length,
-  )
-  console.log("Eligible entries (users with entries left):", eligible.length)
+      // console.log('Total submissions:', submissions.value.length)
+    // console.log(
+    //   'Valid submissions:',
+    //   submissions.value.filter((s) => s.entryStatus === 'Valid').length,
+    // )
+    // console.log("Eligible entries (users with entries left):", eligible.length)
 
   return eligible
 })
 
-// Helper function to count confirmed wins for a user
-const getConfirmedWinsCount = (submissionId: string) => {
-  let confirmedWins = 0
+// Helper function to count confirmed wins for a user - UNUSED FUNCTION
+// const getConfirmedWinsCount = (submissionId: string) => {
+//   let confirmedWins = 0
 
-  grandPrizes.value.forEach((prize) => {
-    confirmedWins += prize.winners.filter(
-      (winner) =>
-        winner.id === submissionId && getWinnerStatus(prize.name, winner.id) === 'confirmed',
-    ).length
-  })
+//   grandPrizes.value.forEach((prize) => {
+//     confirmedWins += prize.winners.filter(
+//       (winner) =>
+//         winner.id === submissionId && getWinnerStatus(prize.name, winner.id) === 'confirmed',
+//     ).length
+//   })
 
-  consolationPrizes.value.forEach((prize) => {
-    confirmedWins += prize.winners.filter(
-      (winner) =>
-        winner.id === submissionId && getWinnerStatus(prize.name, winner.id) === 'confirmed',
-    ).length
-  })
+//   consolationPrizes.value.forEach((prize) => {
+//     confirmedWins += prize.winners.filter(
+//       (winner) =>
+//         winner.id === submissionId && getWinnerStatus(prize.name, winner.id) === 'confirmed',
+//     ).length
+//   })
 
-  return confirmedWins
-}
+//   return confirmedWins
+// }
 
 
 // --- NEW LOGIC: Multi-round raffle, user can win once per round, but can win again in future rounds if they have entries left ---
@@ -1551,21 +1583,32 @@ const getUniqueWinnersCount = () => {
   return uniqueWinnerIds.size
 }
 
-// Backward compatibility function
-const getEligibleEntries = () => eligibleEntries.value
+// Backward compatibility function - UNUSED FUNCTION
+// const getEligibleEntries = () => eligibleEntries.value
 
 // Watch for changes in eligible entries and log them
 watch(
   eligibleEntries,
   (newEligible, oldEligible) => {
     if (oldEligible && newEligible.length !== oldEligible.length) {
-      console.log(`Eligible entries changed: ${oldEligible.length} → ${newEligible.length}`)
+      // console.log(`Eligible entries changed: ${oldEligible.length} → ${newEligible.length}`)
 
       // Force reactive update of the pick winners tab
       nextTick(() => {
         // This ensures the UI updates after the next tick
-        console.log('Pick Winners tab should now show updated eligibility')
+        // console.log('Pick Winners tab should now show updated eligibility')
       })
+    }
+  },
+  { deep: true, immediate: false },
+)
+
+// Watch for changes in winner status to ensure UI updates
+watch(
+  winnerStatus,
+  (newStatus, oldStatus) => {
+    if (import.meta.env.DEV) {
+      console.log('Winner status changed:', { oldStatus, newStatus })
     }
   },
   { deep: true, immediate: false },
@@ -1843,10 +1886,10 @@ const updateWinnerStatusInDatabase = async (
 
     // Update each matching document (should be only one)
     const updatePromises = querySnapshot.docs.map((docSnapshot) => {
-      const updateData: any = {
-        status: status,
-        verifiedAt: serverTimestamp(),
-      }
+          const updateData: any = {
+      status: status,
+      verifiedAt: serverTimestamp(),
+    }
 
       if (rejectionReason) {
         updateData.rejectionReason = rejectionReason
@@ -1883,13 +1926,13 @@ const getConfirmedWinnersCount = (prizeName: string, prizeWinners: Submission[])
 }
 
 // Get count of how many more winners are needed for a prize
-const getRemainingWinnersNeeded = (prize: any) => {
+const getRemainingWinnersNeeded = (prize: { name: string; count: number; winners: Submission[] }) => {
   const confirmedCount = getConfirmedWinnersCount(prize.name, prize.winners)
   return Math.max(0, prize.count - confirmedCount)
 }
 
 // Check if prize drawing is complete (has enough confirmed winners)
-const isPrizeComplete = (prize: any) => {
+const isPrizeComplete = (prize: { name: string; count: number; winners: Submission[] }) => {
   return getRemainingWinnersNeeded(prize) === 0
 }
 
@@ -2139,19 +2182,40 @@ onMounted(async () => {
 
   // Load existing winners after submissions are loaded
   await loadExistingWinners()
+  
+  // Verify winner status was loaded correctly
+  if (import.meta.env.DEV) {
+    console.log('=== INITIAL LOAD VERIFICATION ===')
+    console.log('Winner Status after load:', winnerStatus.value)
+    console.log('Draw Times after load:', drawTime.value)
+    console.log('Rejection Reasons after load:', rejectionReasons.value)
+  }
 
   // Add debug functions to window for testing (development only)
-  if (import.meta.env.DEV) {
-    ;(window as any).clearUsedWinners = () => {
-      clearUsedWinnerIds()
-      showToast('info', 'Debug', 'Cleared all used winner IDs')
-    }
-    ;(window as any).forceUpdate = () => {
-      // Force reactivity update
-      submissions.value = [...submissions.value]
-      showToast('info', 'Debug', 'Forced reactivity update')
-    }
+if (import.meta.env.DEV) {
+  ;(window as unknown as Record<string, unknown>).clearUsedWinners = () => {
+    clearUsedWinnerIds()
+    showToast('info', 'Debug', 'Cleared all used winner IDs')
   }
+  ;(window as unknown as Record<string, unknown>).forceUpdate = () => {
+    // Force reactivity update
+    submissions.value = [...submissions.value]
+    showToast('info', 'Debug', 'Forced reactivity update')
+  }
+  ;(window as unknown as Record<string, unknown>).checkWinnerStatus = () => {
+    console.log('=== WINNER STATUS DEBUG ===')
+    console.log('Winner Status State:', winnerStatus.value)
+    console.log('Draw Times State:', drawTime.value)
+    console.log('Rejection Reasons State:', rejectionReasons.value)
+    console.log('Grand Prizes Winners:', grandPrizes.value.map(p => ({ name: p.name, winners: p.winners.length })))
+    console.log('Consolation Prizes Winners:', consolationPrizes.value.map(p => ({ name: p.name, winners: p.winners.length })))
+    showToast('info', 'Debug', 'Winner status logged to console')
+  }
+  ;(window as unknown as Record<string, unknown>).reloadWinners = async () => {
+    await loadExistingWinners()
+    showToast('info', 'Debug', 'Winners reloaded from database')
+  }
+}
 
   // Add event listener for click outside dropdown
   document.addEventListener('click', handleClickOutside)
@@ -3104,7 +3168,7 @@ onUnmounted(() => {
                             formatValue(
                               column.key === 'id'
                                 ? submission.displayId
-                                : (submission as any)[column.key],
+                                : (submission as Record<string, unknown>)[column.key],
                               column.key,
                             )
                           "
@@ -3113,7 +3177,7 @@ onUnmounted(() => {
                             formatValue(
                               column.key === 'id'
                                 ? submission.displayId
-                                : (submission as any)[column.key],
+                                : (submission as Record<string, unknown>)[column.key],
                               column.key,
                             )
                           }}
@@ -3328,6 +3392,32 @@ onUnmounted(() => {
               <p class="mb-4 text-gray-600">
                 Generate winners for Grand Prizes and Consolation Prizes from verified entries
               </p>
+              
+              <!-- Winner Status Refresh Button -->
+              <div class="flex justify-center mt-4">
+                <button
+                  @click="refreshWinnerStatus"
+                  :disabled="winnersLoading"
+                  class="flex items-center px-4 py-2 space-x-2 text-sm font-medium text-white transition-all duration-200 bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Refresh winner status from database"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    :class="{ 'animate-spin': winnersLoading }"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  <span>{{ winnersLoading ? 'Refreshing...' : 'Refresh Winner Status' }}</span>
+                </button>
+              </div>
             </div>
 
             <!-- Valid/Invalid Entries Display Section -->
