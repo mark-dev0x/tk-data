@@ -61,9 +61,9 @@ const showDeleteButton = computed(() => {
 
 // Delete winners for a specific prize (by reference and type)
 interface Prize {
-  name: string;
-  count: number;
-  winners: Submission[];
+  name: string
+  count: number
+  winners: Submission[]
 }
 
 const deletePrizeWinners = async (prize: Prize) => {
@@ -81,9 +81,17 @@ const deletePrizeWinners = async (prize: Prize) => {
     Object.keys(rejectionReasons.value).forEach((key) => {
       if (key.startsWith(prize.name + '::')) delete rejectionReasons.value[key]
     })
-    showToast('warning', 'Winners Deleted', `All winners for "${prize.name}" have been cleared from the database.`)
+    showToast(
+      'warning',
+      'Winners Deleted',
+      `All winners for "${prize.name}" have been cleared from the database.`,
+    )
   } catch (err) {
-    showToast('error', 'Delete Failed', `Failed to delete winners for "${prize.name}": ${(err as Error)?.message || String(err)}`)
+    showToast(
+      'error',
+      'Delete Failed',
+      `Failed to delete winners for "${prize.name}": ${(err as Error)?.message || String(err)}`,
+    )
   }
 }
 
@@ -824,8 +832,8 @@ const toggleEntryStatus = async (submission: Submission) => {
       submissions.value[submissionIndex].entryStatus = newStatus
     }
 
-          // Force Vue reactivity update
-      await nextTick()
+    // Force Vue reactivity update
+    await nextTick()
 
     // Show success notification for status change
     if (newStatus === 'Valid') {
@@ -843,10 +851,10 @@ const toggleEntryStatus = async (submission: Submission) => {
         3000,
       )
     }
-        } catch {
-        console.error('Failed to update submission status')
-        showToast('error', 'Update Failed', 'Failed to update entry status. Please try again.', 5000)
-      } finally {
+  } catch {
+    console.error('Failed to update submission status')
+    showToast('error', 'Update Failed', 'Failed to update entry status. Please try again.', 5000)
+  } finally {
     // Remove from updating set
     statusUpdating.value.delete(submission.id)
   }
@@ -945,7 +953,7 @@ const ageDistributionData = computed(() => {
       },
     ],
   }
-      // console.log('Age Distribution Data:', data)
+  // console.log('Age Distribution Data:', data)
   return data
 })
 
@@ -1221,22 +1229,26 @@ const handleLogout = async () => {
 
 // Helper function to check if value is a Firebase timestamp
 const isFirebaseTimestamp = (value: unknown): value is { toDate: () => Date } => {
-  return value !== null && 
-         typeof value === 'object' && 
-         'toDate' in value && 
-         typeof (value as { toDate?: unknown }).toDate === 'function'
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'toDate' in value &&
+    typeof (value as { toDate?: unknown }).toDate === 'function'
+  )
 }
 
 const formatValue = (value: unknown, key: string): string => {
   if (value === null || value === undefined) return '-'
 
   if (key === 'submittedAt' && value) {
-        try {
-          const date = isFirebaseTimestamp(value) ? value.toDate() : new Date(value as string | number | Date)
-          return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
-        } catch {
-          return String(value)
-        }
+    try {
+      const date = isFirebaseTimestamp(value)
+        ? value.toDate()
+        : new Date(value as string | number | Date)
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+    } catch {
+      return String(value)
+    }
   }
 
   if (key === 'purchaseAmount' && typeof value === 'number') {
@@ -1248,6 +1260,30 @@ const formatValue = (value: unknown, key: string): string => {
   }
 
   return String(value)
+}
+
+const getFormattedTitle = (
+  submission: Submission & { displayId?: string },
+  columnKey: string,
+): string => {
+  return formatValue(
+    columnKey === 'id'
+      ? submission.displayId || ''
+      : (submission as unknown as Record<string, unknown>)[columnKey],
+    columnKey,
+  )
+}
+
+const getFormattedValue = (
+  submission: Submission & { displayId?: string },
+  columnKey: string,
+): string => {
+  return formatValue(
+    columnKey === 'id'
+      ? submission.displayId || ''
+      : (submission as unknown as Record<string, unknown>)[columnKey],
+    columnKey,
+  )
 }
 
 const retryCount = ref(0)
@@ -1284,23 +1320,21 @@ const loadExistingWinners = async () => {
           }
         })
 
-                  // Restore draw times and winner status for existing winners
-          winners.forEach((winner) => {
-            const key = makeWinnerKey(prizeName, winner.submissionId)
-            
-            // Restore draw time
-            if (winner.drawnAt) {
-              const drawTimeStr = isFirebaseTimestamp(winner.drawnAt)
-                ? winner.drawnAt.toDate().toLocaleString()
-                : new Date(winner.drawnAt as string | number | Date).toLocaleString()
-              drawTime.value[key] = drawTimeStr
-            }
+        // Restore draw times and winner status for existing winners
+        winners.forEach((winner) => {
+          const key = makeWinnerKey(prizeName, winner.submissionId)
+
+          // Restore draw time
+          if (winner.drawnAt) {
+            const drawTimeStr = isFirebaseTimestamp(winner.drawnAt)
+              ? winner.drawnAt.toDate().toLocaleString()
+              : new Date(winner.drawnAt as string | number | Date).toLocaleString()
+            drawTime.value[key] = drawTimeStr
+          }
 
           // Restore winner status per prize-entry
           if (winner.status && (winner.status === 'confirmed' || winner.status === 'rejected')) {
             winnerStatus.value[key] = winner.status
-          } else if (import.meta.env.DEV) {
-            console.warn(`Winner ${prizeName}::${winner.submissionId} has no valid status: ${winner.status}`)
           }
 
           // Restore rejection reason if it exists
@@ -1331,17 +1365,6 @@ const loadExistingWinners = async () => {
     // Don't fail the app if winners can't be loaded, just log it
   } finally {
     winnersLoading.value = false
-  }
-}
-
-// Function to manually refresh winner status from database
-const refreshWinnerStatus = async () => {
-  try {
-    await loadExistingWinners()
-    showToast('success', 'Winner Status Refreshed', 'Winner status has been refreshed from the database.')
-  } catch (error) {
-    console.error('Failed to refresh winner status:', error)
-    showToast('error', 'Refresh Failed', 'Failed to refresh winner status from database.')
   }
 }
 
@@ -1458,12 +1481,12 @@ const eligibleEntries = computed(() => {
     (submission) => submission.entryStatus === 'Valid' && getUserEntriesLeft(submission.id) > 0,
   )
 
-      // console.log('Total submissions:', submissions.value.length)
-    // console.log(
-    //   'Valid submissions:',
-    //   submissions.value.filter((s) => s.entryStatus === 'Valid').length,
-    // )
-    // console.log("Eligible entries (users with entries left):", eligible.length)
+  // console.log('Total submissions:', submissions.value.length)
+  // console.log(
+  //   'Valid submissions:',
+  //   submissions.value.filter((s) => s.entryStatus === 'Valid').length,
+  // )
+  // console.log("Eligible entries (users with entries left):", eligible.length)
 
   return eligible
 })
@@ -1488,7 +1511,6 @@ const eligibleEntries = computed(() => {
 
 //   return confirmedWins
 // }
-
 
 // --- NEW LOGIC: Multi-round raffle, user can win once per round, but can win again in future rounds if they have entries left ---
 // Track how many times each user has won
@@ -1602,7 +1624,6 @@ watch(
   { deep: true, immediate: false },
 )
 
-
 // Deprecated: drawRandomWinners (use drawWinnersForRound for multi-round logic)
 const drawRandomWinners = (count: number) => {
   // For backward compatibility, use the new logic with an empty roundWinners set
@@ -1662,12 +1683,12 @@ const confirmWinner = async () => {
 
     // Update winner status in Firebase
     try {
-          await updateWinnerStatusInDatabase(
-      selectedWinner.value.id,
-      selectedPrizeName.value,
-      'confirmed',
-    )
-    // Winner confirmed successfully
+      await updateWinnerStatusInDatabase(
+        selectedWinner.value.id,
+        selectedPrizeName.value,
+        'confirmed',
+      )
+      // Winner confirmed successfully
       // Reflect local state only after successful DB update
       winnerStatus.value[key] = 'confirmed'
       drawTime.value[key] = new Date().toLocaleString()
@@ -1695,9 +1716,9 @@ const confirmWinner = async () => {
       currentAdmin.value || undefined,
     ).catch((err) => console.warn('Activity logging failed:', err))
 
-          // Winner confirmed successfully
+    // Winner confirmed successfully
 
-      // Show success notification
+    // Show success notification
     showToast(
       'success',
       'Winner Confirmed',
@@ -1862,10 +1883,10 @@ const updateWinnerStatusInDatabase = async (
 
     // Update each matching document (should be only one)
     const updatePromises = querySnapshot.docs.map((docSnapshot) => {
-          const updateData: { status: string; verifiedAt: unknown; rejectionReason?: string } = {
-      status: status,
-      verifiedAt: serverTimestamp(),
-    }
+      const updateData: { status: string; verifiedAt: unknown; rejectionReason?: string } = {
+        status: status,
+        verifiedAt: serverTimestamp(),
+      }
 
       if (rejectionReason) {
         updateData.rejectionReason = rejectionReason
@@ -1902,7 +1923,11 @@ const getConfirmedWinnersCount = (prizeName: string, prizeWinners: Submission[])
 }
 
 // Get count of how many more winners are needed for a prize
-const getRemainingWinnersNeeded = (prize: { name: string; count: number; winners: Submission[] }) => {
+const getRemainingWinnersNeeded = (prize: {
+  name: string
+  count: number
+  winners: Submission[]
+}) => {
   const confirmedCount = getConfirmedWinnersCount(prize.name, prize.winners)
   return Math.max(0, prize.count - confirmedCount)
 }
@@ -2158,38 +2183,41 @@ onMounted(async () => {
 
   // Load existing winners after submissions are loaded
   await loadExistingWinners()
-  
-      // Verify winner status was loaded correctly (development only)
-    if (import.meta.env.DEV) {
-      console.log('Initial load verification completed')
-    }
+
+  // Verify winner status was loaded correctly (development only)
+  if (import.meta.env.DEV) {
+    console.log('Initial load verification completed')
+  }
 
   // Add debug functions to window for testing (development only)
-if (import.meta.env.DEV) {
-  ;(window as unknown as Record<string, unknown>).clearUsedWinners = () => {
-    clearUsedWinnerIds()
-    showToast('info', 'Debug', 'Cleared all used winner IDs')
+  if (import.meta.env.DEV) {
+    ;(window as unknown as Record<string, unknown>).clearUsedWinners = () => {
+      clearUsedWinnerIds()
+      showToast('info', 'Debug', 'Cleared all used winner IDs')
+    }
+    ;(window as unknown as Record<string, unknown>).forceUpdate = () => {
+      // Force reactivity update
+      submissions.value = [...submissions.value]
+      showToast('info', 'Debug', 'Forced reactivity update')
+    }
+    ;(window as unknown as Record<string, unknown>).checkWinnerStatus = () => {
+      console.log('Winner Status Debug:', {
+        status: winnerStatus.value,
+        drawTimes: drawTime.value,
+        rejectionReasons: rejectionReasons.value,
+        grandPrizes: grandPrizes.value.map((p) => ({ name: p.name, winners: p.winners.length })),
+        consolationPrizes: consolationPrizes.value.map((p) => ({
+          name: p.name,
+          winners: p.winners.length,
+        })),
+      })
+      showToast('info', 'Debug', 'Winner status logged to console')
+    }
+    ;(window as unknown as Record<string, unknown>).reloadWinners = async () => {
+      await loadExistingWinners()
+      showToast('info', 'Debug', 'Winners reloaded from database')
+    }
   }
-  ;(window as unknown as Record<string, unknown>).forceUpdate = () => {
-    // Force reactivity update
-    submissions.value = [...submissions.value]
-    showToast('info', 'Debug', 'Forced reactivity update')
-  }
-  ;(window as unknown as Record<string, unknown>).checkWinnerStatus = () => {
-    console.log('Winner Status Debug:', {
-      status: winnerStatus.value,
-      drawTimes: drawTime.value,
-      rejectionReasons: rejectionReasons.value,
-      grandPrizes: grandPrizes.value.map(p => ({ name: p.name, winners: p.winners.length })),
-      consolationPrizes: consolationPrizes.value.map(p => ({ name: p.name, winners: p.winners.length }))
-    })
-    showToast('info', 'Debug', 'Winner status logged to console')
-  }
-  ;(window as unknown as Record<string, unknown>).reloadWinners = async () => {
-    await loadExistingWinners()
-    showToast('info', 'Debug', 'Winners reloaded from database')
-  }
-}
 
   // Add event listener for click outside dropdown
   document.addEventListener('click', handleClickOutside)
@@ -2208,18 +2236,18 @@ onUnmounted(() => {
       <div
         class="flex pl-3 w-full sm:pl-6 items-center pr-3 justify-between mx-auto sm:pr-6 max-w-[3200px]"
       >
-              <!-- Brand Logo -->
-              <div class="flex items-center">
-                <img
-                  src="/imgs/tk-white.webp"
-                  alt="Tapa King logo"
-                  class="object-cover w-full h-10 rounded-lg sm:h-12"
-                />
-              </div>
+        <!-- Brand Logo -->
+        <div class="flex items-center">
+          <img
+            src="/imgs/tk-white.webp"
+            alt="Tapa King logo"
+            class="object-cover w-full h-10 rounded-lg sm:h-12"
+          />
+        </div>
 
-              <div class="flex items-center space-x-3">
-                <!-- Activity Log Button -->
-                <button
+        <div class="flex items-center space-x-3">
+          <!-- Activity Log Button -->
+          <button
             @click="toggleActivityLogModal"
             class="flex items-center px-3 py-2 space-x-2 text-white transition-colors duration-200 rounded-lg hover:text-gray-200 hover:bg-red-700"
             title="View Activity Logs"
@@ -3135,27 +3163,13 @@ onUnmounted(() => {
                         >
                           View Receipt
                         </button>
-                        <div
+                        <span
                           v-else
                           class="truncate"
-                          :title="
-                            formatValue(
-                              column.key === 'id'
-                                ? submission.displayId
-                                : (submission as Record<string, unknown>)[column.key],
-                              column.key,
-                            )
-                          "
+                          :title="getFormattedTitle(submission, column.key)"
                         >
-                          {{
-                            formatValue(
-                              column.key === 'id'
-                                ? submission.displayId
-                                : (submission as Record<string, unknown>)[column.key],
-                              column.key,
-                            )
-                          }}
-                        </div>
+                          {{ getFormattedValue(submission, column.key) }}
+                        </span>
                       </td>
                     </tr>
                   </tbody>
@@ -3366,32 +3380,6 @@ onUnmounted(() => {
               <p class="mb-4 text-gray-600">
                 Generate winners for Grand Prizes and Consolation Prizes from verified entries
               </p>
-              
-              <!-- Winner Status Refresh Button -->
-              <div class="flex justify-center mt-4">
-                <button
-                  @click="refreshWinnerStatus"
-                  :disabled="winnersLoading"
-                  class="flex items-center px-4 py-2 space-x-2 text-sm font-medium text-white transition-all duration-200 bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Refresh winner status from database"
-                >
-                  <svg
-                    class="w-4 h-4"
-                    :class="{ 'animate-spin': winnersLoading }"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                  <span>{{ winnersLoading ? 'Refreshing...' : 'Refresh Winner Status' }}</span>
-                </button>
-              </div>
             </div>
 
             <!-- Valid/Invalid Entries Display Section -->
@@ -3634,7 +3622,8 @@ onUnmounted(() => {
                           :disabled="
                             isPrizeComplete(prize) ||
                             (prize.winners.length >= prize.count &&
-                              prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length > 0) ||
+                              prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id))
+                                .length > 0) ||
                             stats.validEntries === 0 ||
                             drawingWinners.has(prize.name) ||
                             eligibleEntries.length < getRemainingWinnersNeeded(prize)
@@ -3661,7 +3650,8 @@ onUnmounted(() => {
                               : isPrizeComplete(prize)
                                 ? 'Complete'
                                 : prize.winners.length >= prize.count &&
-                                    prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length > 0
+                                    prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id))
+                                      .length > 0
                                   ? `Pending Review (${getRemainingWinnersNeeded(prize)} more needed)`
                                   : eligibleEntries.length < getRemainingWinnersNeeded(prize)
                                     ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} unique users available)`
@@ -3673,10 +3663,20 @@ onUnmounted(() => {
                         <button
                           v-if="showDeleteButton && prize.winners && prize.winners.length > 0"
                           @click="deletePrizeWinners(prize)"
-                          class="flex items-center gap-1 px-3 py-2 text-xs font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow"
+                          class="flex items-center gap-1 px-3 py-2 text-xs font-medium text-white transition-all duration-200 rounded-lg shadow bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800"
                         >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
                           </svg>
                           Delete
                         </button>
@@ -3849,7 +3849,8 @@ onUnmounted(() => {
                           :disabled="
                             isPrizeComplete(prize) ||
                             (prize.winners.length >= prize.count &&
-                              prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length > 0) ||
+                              prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id))
+                                .length > 0) ||
                             stats.validEntries === 0 ||
                             drawingWinners.has(prize.name) ||
                             eligibleEntries.length < getRemainingWinnersNeeded(prize)
@@ -3876,7 +3877,8 @@ onUnmounted(() => {
                               : isPrizeComplete(prize)
                                 ? 'Complete'
                                 : prize.winners.length >= prize.count &&
-                                    prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id)).length > 0
+                                    prize.winners.filter((w) => !getWinnerStatus(prize.name, w.id))
+                                      .length > 0
                                   ? `Pending Review (${getRemainingWinnersNeeded(prize)} more needed)`
                                   : eligibleEntries.length < getRemainingWinnersNeeded(prize)
                                     ? `Need ${getRemainingWinnersNeeded(prize)} (${eligibleEntries.length} unique users available)`
@@ -3888,10 +3890,20 @@ onUnmounted(() => {
                         <button
                           v-if="showDeleteButton && prize.winners && prize.winners.length > 0"
                           @click="deletePrizeWinners(prize)"
-                          class="flex items-center gap-1 px-3 py-2 text-xs font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow"
+                          class="flex items-center gap-1 px-3 py-2 text-xs font-medium text-white transition-all duration-200 rounded-lg shadow bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800"
                         >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
                           </svg>
                           Delete
                         </button>
@@ -4090,7 +4102,7 @@ onUnmounted(() => {
                             class="text-sm font-bold"
                             >{{ getWinnerStatusIcon(prize.name, winner.id) }}</span
                           >
-                          <span class="font-semibold text-sm">
+                          <span class="text-sm font-semibold">
                             {{ winner.fullName }}
                           </span>
                         </button>
@@ -4131,7 +4143,7 @@ onUnmounted(() => {
                             class="text-sm font-bold"
                             >{{ getWinnerStatusIcon(prize.name, winner.id) }}</span
                           >
-                          <span class="font-semibold text-sm">
+                          <span class="text-sm font-semibold">
                             {{ winner.fullName }}
                           </span>
                         </button>
@@ -4569,13 +4581,13 @@ onUnmounted(() => {
               <div class="p-6 bg-white border border-gray-200 rounded-lg">
                 <h3 class="mb-4 text-lg font-semibold text-gray-900">Summary Statistics</h3>
                 <div class="space-y-4">
-                  <div class="flex justify-between items-center">
+                  <div class="flex items-center justify-between">
                     <span class="text-sm text-gray-600">Average Entries per User:</span>
                     <span class="font-semibold text-gray-900">
                       {{ (stats.totalEntries / Math.max(stats.totalUsers, 1)).toFixed(2) }}
                     </span>
                   </div>
-                  <div class="flex justify-between items-center">
+                  <div class="flex items-center justify-between">
                     <span class="text-sm text-gray-600">Average Purchase Amount:</span>
                     <span class="font-semibold text-gray-900">
                       ₱{{
@@ -4586,7 +4598,7 @@ onUnmounted(() => {
                       }}
                     </span>
                   </div>
-                  <!-- <div class="flex justify-between items-center">
+                  <!-- <div class="flex items-center justify-between">
                     <span class="text-sm text-gray-600">Validation Rate:</span>
                     <span class="font-semibold text-gray-900">
                       {{
@@ -4596,7 +4608,7 @@ onUnmounted(() => {
                       }}%
                     </span>
                   </div> -->
-                  <div class="flex justify-between items-center">
+                  <div class="flex items-center justify-between">
                     <span class="text-sm text-gray-600">Total Branches:</span>
                     <span class="font-semibold text-gray-900">
                       {{ availableBranches.length }}
@@ -4972,6 +4984,7 @@ onUnmounted(() => {
               placeholder="Please provide a reason for rejecting this winner..."
               required
               @keydown.esc="closeRejectReasonModal"
+              @keydown.enter.prevent="confirmRejectWinner"
               ref="rejectionTextarea"
             ></textarea>
           </div>
@@ -4985,6 +4998,7 @@ onUnmounted(() => {
             </button>
             <button
               @click="confirmRejectWinner"
+              @keydown.enter="confirmRejectWinner"
               :disabled="!rejectionReason.trim() || rejectionInProgress"
               class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
@@ -5323,7 +5337,9 @@ onUnmounted(() => {
                           {{
                             isFirebaseTimestamp(log.timestamp)
                               ? log.timestamp.toDate().toLocaleDateString()
-                              : new Date(log.timestamp as string | number | Date).toLocaleDateString()
+                              : new Date(
+                                  log.timestamp as string | number | Date,
+                                ).toLocaleDateString()
                           }}
                         </div>
                         <!-- Enhanced timestamp for Winner Rejection on mobile -->
@@ -5335,7 +5351,9 @@ onUnmounted(() => {
                           {{
                             isFirebaseTimestamp(log.timestamp)
                               ? log.timestamp.toDate().toLocaleDateString()
-                              : new Date(log.timestamp as string | number | Date).toLocaleDateString()
+                              : new Date(
+                                  log.timestamp as string | number | Date,
+                                ).toLocaleDateString()
                           }}
                         </div>
                         <!-- Enhanced timestamp for Winner Confirmation on mobile -->
@@ -5347,7 +5365,9 @@ onUnmounted(() => {
                           {{
                             isFirebaseTimestamp(log.timestamp)
                               ? log.timestamp.toDate().toLocaleDateString()
-                              : new Date(log.timestamp as string | number | Date).toLocaleDateString()
+                              : new Date(
+                                  log.timestamp as string | number | Date,
+                                ).toLocaleDateString()
                           }}
                         </div>
                         <!-- Regular timestamp for other actions -->
@@ -5355,7 +5375,9 @@ onUnmounted(() => {
                           {{
                             isFirebaseTimestamp(log.timestamp)
                               ? log.timestamp.toDate().toLocaleDateString()
-                              : new Date(log.timestamp as string | number | Date).toLocaleDateString()
+                              : new Date(
+                                  log.timestamp as string | number | Date,
+                                ).toLocaleDateString()
                           }}
                         </div>
                       </div>
@@ -5369,7 +5391,8 @@ onUnmounted(() => {
                         <div
                           class="mb-2 text-xs font-medium tracking-wide text-purple-800 uppercase"
                         >
-                          {{ (log.details as any).winners.length === 1 ? 'Winner' : 'Winners' }} Selected:
+                          {{ (log.details as any).winners.length === 1 ? 'Winner' : 'Winners' }}
+                          Selected:
                         </div>
                         <div class="space-y-2">
                           <div
@@ -5410,7 +5433,8 @@ onUnmounted(() => {
                         <div class="p-2 mb-3 bg-white border border-red-100 rounded">
                           <div class="font-semibold text-gray-900">{{ log.targetName }}</div>
                           <div v-if="log.details" class="text-xs text-gray-600">
-                            {{ (log.details as any).email }} • {{ (log.details as any).mobileNumber }}
+                            {{ (log.details as any).email }} •
+                            {{ (log.details as any).mobileNumber }}
                           </div>
                           <div class="text-xs font-medium text-red-600">
                             Prize: {{ (log.details as any)?.prizeName }}
@@ -5448,7 +5472,8 @@ onUnmounted(() => {
                         <div class="p-2 bg-white border border-green-100 rounded">
                           <div class="font-semibold text-gray-900">{{ log.targetName }}</div>
                           <div v-if="log.details" class="text-xs text-gray-600">
-                            {{ (log.details as any).email }} • {{ (log.details as any).mobileNumber }}
+                            {{ (log.details as any).email }} •
+                            {{ (log.details as any).mobileNumber }}
                           </div>
                           <div class="text-xs font-medium text-green-600">
                             Prize: {{ (log.details as any)?.prizeName }}
